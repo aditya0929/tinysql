@@ -11,7 +11,7 @@ Last updated: 2026-10-08.
 | Phase | State |
 |---|---|
 | A. Corpus: download, clean, dedup, decontaminate | done (decontamination numbers in section 6.4) |
-| B. Tokenizer (own byte-level BPE) | implemented and tested; training on the real corpus is the next step |
+| B. Tokenizer (own byte-level BPE) | **done and trained** on the real corpus (section 5.1); comparison against Hugging Face's trainer still to do |
 | C. Data pipeline (token shards, loader) | not started |
 | D. Model from scratch + verification | **done**, matches a reference Llama to 1e-4 |
 | E. Pretraining (optimizer, loop, run) | not started |
@@ -160,7 +160,33 @@ Verification: 21 tests (round-trips on Unicode, emoji, whitespace, random Unicod
 
 Early comparison (4.6 MB of Python standard-library text, vocabulary 4,000): **3.64 bytes/token for my tokenizer vs 3.63 for Hugging Face's `tokenizers`** trained on the same data. Training took 2.8 s.
 
-Training on the real corpus is next. The script is `tokenizer/train_tokenizer.py`: a SQL-heavy sample of random row groups (about 400 MB Stack SQL, 350 MB FineWeb-Edu, 150 MB Stack Exchange, 40 MB Gretel) plus WikiSQL **train** questions and column headers only, so dev and test stay unseen. It prints per-source bytes/token on held-out text and how SQL keywords split.
+### 5.1 Training on the real corpus (`tokenizer/train_tokenizer.py`)
+
+Sample: random row groups, SQL-heavy on purpose: 15 FineWeb-Edu, 16 Stack SQL, 9 Stack Exchange, 19 Gretel row groups (955 MB of text), plus WikiSQL **train** questions and column headers only, so dev and test stay unseen. Counting runs in parallel; chunks seen fewer than 2 times are ignored in the merge loop.
+
+A 10%-scale test run came first (54 MB, 58 s total) and exposed a sampler bug: Parquet's `total_byte_size` is already uncompressed, but it had been multiplied by 4, so a 350 MB target would have yielded about 90 MB. After the fix the sampler hits its targets (FineWeb-Edu about 354 MB, Stack SQL 418 MB, Stack Exchange 166 MB, Gretel 37 MB).
+
+Full run, result saved to `tokenizer/tinysql_bpe.json` (413 KB, 32,768 tokens = 256 bytes + 32,500 merges + 12 special tokens):
+
+| Measurement | Value |
+|---|---|
+| Counting | 26 s; 955 MB of text, 2,587,243 distinct chunks (1,207,284 seen at least twice) |
+| 32,500 merges | 229 s; about 1.5 GB RAM |
+
+Held-out compression, bytes per token (higher is better):
+
+| Source | Aggregate | Median document |
+|---|---|---|
+| FineWeb-Edu | 4.49 | 4.56 |
+| Stack Exchange | 3.80 | 4.06 |
+| Gretel | 4.10 | 4.10 |
+| Stack SQL | 2.71 | 3.60 |
+
+The Stack SQL aggregate is dragged down by data-heavy files (`INSERT` rows of UUIDs and numbers compress at about 1.3 bytes/token; random keys are inherently incompressible). The median SQL file compresses at 3.60. On 900 random SQL files, a tokenizer from the 10% test scored a median of 3.47, so the full run improved it.
+
+How SQL tokenizes: ` SELECT`, ` FROM`, ` WHERE` are single tokens; ` GROUP BY`, ` ORDER BY`, ` INNER JOIN`, ` CREATE TABLE` are two tokens (keyword + keyword); `customer_id` is ` customer` + `_id`; `COUNT(*)` is `COUNT` + `(*)`. Digits are split in groups of at most 3 by design.
+
+Still to do for the tokenizer: the comparison against Hugging Face's trainer on identical data (`tokenizer/compare_hf.py`).
 
 ---
 
@@ -266,7 +292,7 @@ Plan: at shard-building time the SQL code slice can be sampled down to roughly 1
 
 ## 9. What is next, in order
 
-1. Train the BPE tokenizer on the real sample: a 10%-scale run first to measure time and memory, then the full run. Report bytes/token per source and the SQL keyword splits, and compare against Hugging Face's trainer.
+1. Compare the trained tokenizer against Hugging Face's trainer on identical data (`tokenizer/compare_hf.py`).
 2. `build_shards.py` and `loader.py`: tokenize everything (web and code with `allow_special=False`), pack into `uint16` shards with a held-out validation shard, memory-mapped random-window batching.
 3. Own AdamW (checked against `torch.optim.AdamW`), warmup and cosine schedule, training loop with gradient accumulation, precision switch (bf16, and fp16 with loss scaling for T4-class GPUs), checkpoint and exact resume, logging. Verify with a one-batch overfit and a resume test on CPU.
 4. Measure real tokens per second on a free Colab or Kaggle T4, then decide where the full run happens. The laptop's integrated GPU is not usable for training (compute-limited and poorly supported by PyTorch on Windows). The plan is a rented A100 or H100 for about a day for the final pretraining; small ablations can use a free T4.
@@ -285,7 +311,7 @@ python -m data.download                         # download all sources (about 17
 python -m data.clean                            # data/raw -> data/clean
 python -m data.dedup                            # data/clean -> data/dedup
 python -m data.decontaminate                    # data/dedup -> data/final
-python -m tokenizer.train_tokenizer --scale 0.1 # quick tokenizer run (next step)
+python -m tokenizer.train_tokenizer             # about 5 minutes -> tokenizer/tinysql_bpe.json
 ```
 
 Learning scripts that reproduce the lessons: `learn/01_tensors.py`, `learn/02_generation_demo.py`, `learn/03_tokenizer_demo.py`.

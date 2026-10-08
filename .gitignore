@@ -1,0 +1,18 @@
+﻿.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# large artifacts: raw data, token shards, checkpoints, logs
+data/raw/
+data/shards/
+checkpoints/
+runs/
+wandb/
+*.bin
+*.pt
+*.safetensors
+
+# processed data (regenerate with the scripts)
+data/clean/
+data/dedup/
+*.parquet

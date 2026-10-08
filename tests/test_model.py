@@ -1,0 +1,55 @@
+import math
+
+import pytest
+import torch
+import torch.nn.functional as F
+
+from model.model import TinySQL, cross_entropy
+from tests.test_attention_backends import small_cfg
+
+
+def test_cross_entropy_matches_torch_with_ignored_positions():
+    logits = torch.randn(3, 7, 50) * 5
+    targets = torch.randint(0, 50, (3, 7))
+    targets[0, :3] = -100                                        # masked prompt tokens
+    ref = F.cross_entropy(logits.reshape(-1, 50), targets.reshape(-1), ignore_index=-100)
+    assert torch.allclose(cross_entropy(logits, targets), ref, atol=1e-5)
+
+
+def test_initial_loss_is_near_ln_vocab():
+    cfg = small_cfg(vocab_size=1000)
+    model = TinySQL(cfg)
+    ids = torch.randint(0, 1000, (4, 32))
+    targets = torch.randint(0, 1000, (4, 32))      # unrelated to the inputs; targets=ids would leak via tied embeddings
+    _, loss, _ = model(ids, targets=targets)
+    assert abs(loss.item() - math.log(1000)) < 0.5
+
+
+@pytest.mark.parametrize("fused", [False, True])
+def test_model_cache_decode_matches_full_forward(fused):
+    cfg = small_cfg(fused_attention=fused)
+    model = TinySQL(cfg).eval()
+    ids = torch.randint(0, cfg.vocab_size, (1, 14))
+    with torch.no_grad():
+        full, _, _ = model(ids)
+        out, _, kvs = model(ids[:, :8])
+        pieces = [out]
+        for t in range(8, 14):
+            out, _, kvs = model(ids[:, t : t + 1], start_pos=t, past_kvs=kvs)
+            pieces.append(out)
+    assert torch.allclose(full, torch.cat(pieces, dim=1), atol=1e-4)
+
+
+def test_model_can_overfit_one_batch():
+    torch.manual_seed(0)
+    cfg = small_cfg(vocab_size=64)
+    model = TinySQL(cfg)
+    opt = torch.optim.AdamW(model.parameters(), lr=3e-3)   # placeholder: my own AdamW comes later
+    ids = torch.randint(0, 64, (2, 17))
+    x, y = ids[:, :-1], ids[:, 1:]
+    for _ in range(300):
+        _, loss, _ = model(x, targets=y)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    assert loss.item() < 0.05

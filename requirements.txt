@@ -1,0 +1,14 @@
+﻿numpy
+regex
+pytest
+tqdm
+pyyaml
+matplotlib
+pandas
+datasets
+huggingface_hub
+tokenizers
+transformers
+safetensors
+tensorboard
+gradio

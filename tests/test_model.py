@@ -53,3 +53,41 @@ def test_model_can_overfit_one_batch():
         loss.backward()
         opt.step()
     assert loss.item() < 0.05
+
+
+def test_cross_entropy_gradient_matches_torch():
+    torch.manual_seed(0)
+    base = torch.randn(3, 7, 50) * 4
+    targets = torch.randint(0, 50, (3, 7))
+    targets[1, :4] = -100                                         # masked positions must get exactly zero gradient
+    a = base.clone().requires_grad_()
+    b = base.clone().requires_grad_()
+    mine = cross_entropy(a, targets)
+    ref = F.cross_entropy(b.reshape(-1, 50), targets.reshape(-1), ignore_index=-100)
+    mine.backward()
+    ref.backward()
+    assert torch.allclose(mine, ref, atol=1e-6)
+    assert torch.allclose(a.grad, b.grad, atol=1e-6)
+    assert float(a.grad[1, :4].abs().max()) == 0.0
+
+
+def test_cross_entropy_bf16_logits_keep_dtype_and_stay_close():
+    torch.manual_seed(1)
+    base = (torch.randn(2, 5, 40) * 3)
+    targets = torch.randint(0, 40, (2, 5))
+    a = base.to(torch.bfloat16).requires_grad_()
+    loss = cross_entropy(a, targets)
+    loss.backward()
+    assert a.grad.dtype == torch.bfloat16
+    ref = F.cross_entropy(base.to(torch.bfloat16).float().reshape(-1, 40), targets.reshape(-1))
+    assert abs(loss.item() - ref.item()) < 1e-5
+
+
+def test_cross_entropy_upstream_gradient_scales():
+    logits = torch.randn(4, 9, requires_grad=True)
+    targets = torch.randint(0, 9, (4,))
+    (3.0 * cross_entropy(logits, targets)).backward()
+    g3 = logits.grad.clone()
+    logits.grad = None
+    cross_entropy(logits, targets).backward()
+    assert torch.allclose(g3, 3.0 * logits.grad, atol=1e-6)

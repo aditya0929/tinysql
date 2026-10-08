@@ -1,0 +1,21 @@
+# ~25M-parameter proxy of the 125M model, used for the learning-rate sweep and the other cheap experiments.
+# Same architecture family (RoPE, GQA 3:1, SwiGLU 8/3 width, tied embeddings, 32,768 vocab), same data mix.
+# 150M tokens per run: 16 x 8 x 1024 = 131,072 tokens/step x 1,150 steps.
+model: {vocab_size: 32768, d_model: 384, n_layers: 8, n_heads: 6, n_kv_heads: 2, d_ff: 1024, max_seq_len: 1024}
+seq_len: 1024
+micro_batch: 16
+grad_accum: 8
+max_steps: 1150
+warmup_steps: 50
+peak_lr: 2.0e-3            # overridden per run by the sweep
+min_lr_ratio: 0.1
+weight_decay: 0.1
+grad_clip: 1.0
+log_interval: 25
+eval_interval: 250
+eval_batches: 10
+ckpt_interval: 100000
+compile: true
+tensorboard: false
+sample_prompts: []
+out_dir: runs/proxy

@@ -1,0 +1,21 @@
+# The real run: 125,077,824 parameters, about 4.5B tokens (8,600 steps x 524,288 tokens).
+# peak_lr is a placeholder until the LR sweep on the small proxy models picks the real value.
+# micro_batch / grad_accum only need to multiply to 32 sequences per step; tune micro_batch to the GPU's memory.
+model: {vocab_size: 32768, d_model: 576, n_layers: 30, n_heads: 9, n_kv_heads: 3, d_ff: 1536, max_seq_len: 2048}
+seq_len: 2048
+micro_batch: 8
+grad_accum: 32
+max_steps: 8600
+warmup_steps: 200
+peak_lr: 1.0e-3
+min_lr_ratio: 0.1
+weight_decay: 0.1
+grad_clip: 1.0
+log_interval: 10
+eval_interval: 500
+eval_batches: 20
+ckpt_interval: 250
+peak_tflops: null          # 312 for A100 bf16, 990 for H100 bf16 -> enables the MFU readout
+compile: true
+tensorboard: true
+out_dir: runs/tinysql_125m

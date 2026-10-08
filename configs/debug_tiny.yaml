@@ -1,0 +1,13 @@
+# ~5.6M-parameter model for debugging the loop on a laptop CPU with the real shards
+model: {vocab_size: 32768, d_model: 128, n_layers: 4, n_heads: 4, n_kv_heads: 2, d_ff: 352, max_seq_len: 256}
+seq_len: 256
+micro_batch: 16
+grad_accum: 2
+max_steps: 300
+warmup_steps: 20
+peak_lr: 3.0e-3
+log_interval: 10
+eval_interval: 100
+eval_batches: 5
+ckpt_interval: 100
+out_dir: runs/debug_tiny

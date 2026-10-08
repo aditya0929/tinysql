@@ -51,6 +51,7 @@ class BPETokenizer:
         longest_first = sorted(self.special_tokens, key=len, reverse=True)
         self._special_re = regex.compile("(" + "|".join(regex.escape(t) for t in longest_first) + ")") if longest_first else None
         self._cache: dict[bytes, list[int]] = {}
+        self.cache_limit = 500_000          # cleared when full, so memory stays bounded on huge corpora
 
     @property
     def vocab_size(self) -> int:
@@ -164,6 +165,8 @@ class BPETokenizer:
             if best_pair is None:
                 break
             ids = merge_ids(ids, best_pair, 256 + best_rank)
+        if len(self._cache) >= self.cache_limit:
+            self._cache.clear()
         self._cache[chunk] = ids
         return ids
 

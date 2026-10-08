@@ -78,3 +78,11 @@ def test_save_and_load(tok, tmp_path):
 
 def test_decode_of_arbitrary_ids_does_not_crash(tok):
     tok.decode([200, 201, 5, 300])                              # may contain a broken UTF-8 sequence
+
+
+def test_cache_is_bounded_and_does_not_change_results(tok):
+    text = " ".join(f"word{i}" for i in range(300))
+    expected = tok.encode(text)
+    small = BPETokenizer(tok.merges, tok.special_tokens)
+    small.cache_limit = 10
+    assert small.encode(text) == expected and len(small._cache) <= 10

@@ -58,23 +58,39 @@ class BPETokenizer:
 
     # ------------------------------------------------------------------ training
     @classmethod
-    def train(cls, texts, vocab_size: int, special_tokens=None, pattern: str = GPT4_PATTERN, verbose: bool = False):
+    def count_chunks(cls, texts, special_tokens=None, pattern: str = GPT4_PATTERN) -> Counter:
+        """Pre-tokenize and count each distinct chunk (as bytes). Counters from several workers can be
+        added together, which is how training is parallelised."""
+        helper = cls([], special_tokens, pattern)
+        counts: Counter = Counter()
+        for text in texts:
+            for piece, is_special in helper._split_specials(text):
+                if is_special:
+                    continue                                    # special tokens are not learned
+                for chunk in helper._chunk_re.findall(piece):
+                    counts[chunk.encode("utf-8")] += 1
+        return counts
+
+    @classmethod
+    def train(cls, texts, vocab_size: int, special_tokens=None, pattern: str = GPT4_PATTERN,
+              verbose: bool = False, min_count: int = 1):
+        return cls.train_from_counts(cls.count_chunks(texts, special_tokens, pattern), vocab_size,
+                                     special_tokens, pattern, verbose, min_count)
+
+    @classmethod
+    def train_from_counts(cls, chunk_counts, vocab_size: int, special_tokens=None, pattern: str = GPT4_PATTERN,
+                          verbose: bool = False, min_count: int = 1):
+        """min_count: ignore chunks seen fewer times than this (rare words rarely win a merge, and dropping
+        them shrinks the table that every merge has to scan)."""
         specials = list(DEFAULT_SPECIAL_TOKENS if special_tokens is None else special_tokens)
         n_merges = vocab_size - 256 - len(specials)
         assert n_merges >= 0, "vocab_size too small for bytes + special tokens"
-        helper = cls([], specials, pattern)
 
-        # 1. pre-tokenize and count each distinct chunk once (the key speed-up: we merge over the
-        #    table of unique words, weighted by frequency, not over the raw text)
-        chunk_counts: Counter = Counter()
-        for text in texts:
-            for part in helper._split_specials(text):
-                if part[1]:
-                    continue                                    # special tokens are not learned
-                for chunk in helper._chunk_re.findall(part[0]):
-                    chunk_counts[chunk.encode("utf-8")] += 1
-        words = [list(w) for w in chunk_counts]
-        freqs = list(chunk_counts.values())
+        # the key speed-up: we merge over the table of unique words, weighted by frequency, not over raw text
+        items = [(w, c) for w, c in chunk_counts.items() if c >= min_count]
+        words = [list(w) for w, _ in items]
+        freqs = [c for _, c in items]
+        del items
 
         # 2. count adjacent pairs, remembering which words contain each pair
         pair_counts: dict = defaultdict(int)

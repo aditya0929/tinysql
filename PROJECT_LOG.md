@@ -14,7 +14,7 @@ Last updated: 2026-10-08.
 | B. Tokenizer (own byte-level BPE) | **done and trained** on the real corpus (section 5.1); comparison against Hugging Face's trainer still to do |
 | C. Data pipeline (token shards, loader) | **done**: 5.41B training tokens in `data/shards/` (section 6.5) |
 | D. Model from scratch + verification | **done**, matches a reference Llama to 1e-4 |
-| E. Pretraining (optimizer, loop, run) | not started |
+| E. Pretraining (optimizer, loop, run) | optimizer and loop **done** (section 11); GPU throughput **measured** (section 12); the full run is not started |
 | F. Ablations and scaling | not started |
 | G. Instruction tuning | not started |
 | H. Text-to-SQL fine-tuning | not started |
@@ -22,7 +22,7 @@ Last updated: 2026-10-08.
 | J. Benchmarking and failure analysis | not started |
 | K. Demo, model card, README | not started |
 
-Tests: **86 passing** (`python -m pytest tests`).
+Tests: **106 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -142,6 +142,8 @@ Each token produces a query, key, and value. Scores are `q . k / sqrt(d)`, maske
 | Fused attention path rebound `k` to the 9-head expanded tensor and would have cached it | review while writing, before it ran | keep `k, v` for the cache and use `k_all, v_all` for attention |
 | Initial-loss test returned 5.75 instead of about 6.9 | the test itself | the test used `targets = ids`, which is easy with tied embeddings (the stream starts as `E[token]` and the head scores against the same `E`); fixed by using independent random targets |
 | `xxhash` rejected `str` input in MinHash | dedup test | encode to bytes first |
+| Cross-entropy ran the 125M model out of GPU memory at micro-batch 8 (several fp32 copies of the 8 x 2048 x 32,768 logits) | first run on a real GPU | custom autograd function: saves only the original logits and one logsumexp per token, works in place, recomputes the softmax in the backward pass; gradient tests against PyTorch's loss |
+| The new loss corrupted its own input when logits were already fp32 (`.float()` returns the same tensor, so in-place ops modified the saved input) | the unit tests, on CPU | always copy explicitly (`to(torch.float32, copy=True)`); the bf16 GPU path would have hidden it |
 
 ---
 
@@ -327,7 +329,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 86 tests
+python -m pytest tests                          # 106 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean
@@ -338,3 +340,55 @@ python -m tokenizer.train_tokenizer             # about 5 minutes -> tokenizer/t
 ```
 
 Learning scripts that reproduce the lessons: `learn/01_tensors.py`, `learn/02_generation_demo.py`, `learn/03_tokenizer_demo.py`.
+
+---
+
+## 11. Optimizer, schedule, training loop, and the training-time mix
+
+**Own AdamW** (`optim/adamw.py`): decoupled weight decay, betas (0.9, 0.95), fp32 moment buffers, per-group learning rate and decay, `state_dict` for exact resume. Verified against `torch.optim.AdamW`: parameters agree to 1e-6 after 100 steps, including a decay group and a no-decay group. Also in the module: global-norm gradient clipping (returns the pre-clip norm, which may be non-finite). `optim/schedule.py`: linear warmup, then cosine decay to 10% of peak. Weight decay applies to 2-D weight matrices only, not to norm gains and not to the tied embedding table.
+
+**Training loop** (`train/pretrain.py`, `train/utils.py`), 6 tests:
+- gradient accumulation (tokens per step = micro-batch x accumulation x sequence length); bf16 autocast on A100/H100/L4, fp16 with my own dynamic loss scaler for T4-class GPUs, fp32 on CPU;
+- non-finite gradients skip the update and are counted, instead of poisoning the weights;
+- per-source validation loss on fixed batches (comparable across evaluations), greedy text samples from fixed prompts, `metrics.jsonl`, optional TensorBoard, tokens/s, MFU and peak GPU memory readouts, optional `torch.compile`;
+- checkpoints are written atomically (temp file, then rename), the last two are kept; resume restores weights, optimizer, loader position, loss scaler and RNG. **Test: stop at step 10 and resume to 20 gives bit-identical weights to training straight through.**
+
+**First run on the real shards** (CPU, 4.93M parameters, `configs/debug_tiny.yaml`, 300 steps, 2.5M tokens): loss 10.40 at step 1 (ln 32768 = 10.397) down to about 6.3 to 6.7; validation loss fineweb_edu 6.68, stack_sql 6.15, stackexchange 6.96, gretel_sql 6.78. Generated samples are still gibberish, as expected for 0.05% of the token budget; the run confirms mechanics, not quality. CPU speed was 2.7k tokens/s.
+
+**Training-time mix** (`MixedLoader` in `data/loader.py`, 6 tests). The shards keep everything; the mix is chosen at training time by sampling weights, so it can change without rebuilding. Default two-phase schedule (specialised data concentrated near the end, while the learning rate is decaying):
+
+| Phase | FineWeb-Edu | SQL code | Stack Exchange | Gretel |
+|---|---|---|---|---|
+| first 85% of training | 82% | 15% | 2.5% | 0.5% |
+| last 15% | 54% | 36% | 8% | 2% |
+| overall average | about 78% | about 18% | about 3.3% | about 0.7% |
+
+Repetition check for a 4.5B-token budget, as epochs over the available data (1.0 = each token seen once), columns FineWeb-Edu / SQL / Stack Exchange / Gretel: constant 8% SQL 1.05 / 0.25 / 0.63 / 1.63; constant 17% SQL 0.94 / 0.54 / 1.01 / 1.63; shards as built (26% SQL) 0.83 / 0.83 / 0.82 / 2.72; constant 35% SQL 0.70 / 1.11 / 1.49 / 5.44; the staged schedule above 0.91 / 0.57 / 1.35 / 4.76. The staged mix is a reasoned default, **not yet proven best**: the planned proxy experiment (small models, several mixes, scored on WikiSQL after fine-tuning) will confirm or change it.
+
+---
+
+## 12. Google Cloud setup and GPU throughput
+
+**Account and quota.** Project `tinysql`, billing enabled, Compute Engine API on. The global GPU quota (`GPUS_ALL_REGIONS`) was 0 and was raised to 1 through a support case (approved). L4 quota was already 1 per region. A100 quota is 0 (an A100 request was filed for asia-east1, a region that offers no A100 zones; a request for asia-southeast1 plus the A2 CPU quota would be needed for an A100). vCPU quota is 100 in asia-southeast1, SSD 250 GB, total disk 2,048 GB.
+
+**Region: asia-southeast1 (Singapore).** It was chosen from a zone-availability query: it offers both L4 (zones a, b, c) and A100 40GB, and it is near the developer. us-central1 also offers both.
+
+**Data.** Bucket `gs://tinysql-data-474078649724` (Singapore, public access blocked). The 181 shard files (10,862,071,753 bytes) were uploaded with `gcloud storage rsync` in about 25 minutes (average 6.8 MiB/s, which saturated the home link and caused unrelated API calls to fail meanwhile) and verified byte for byte against the local copy. Inside Google's network the same data downloads to the VM in about a minute. The VM's service account needed an explicit read-only grant on that one bucket (`roles/storage.objectViewer`).
+
+**VM.** `g2-standard-8` (8 vCPU, 31 GB RAM, 1 x NVIDIA L4 with 23 GB, driver 580), 200 GB balanced disk, image `pytorch-2-9-cu129-ubuntu-2204-nvidia-580` (PyTorch 2.9.1, CUDA 12.9, bf16 supported), zone asia-southeast1-b (zone a had no L4 capacity at the time), a 5-hour automatic stop as a safety net, restricted scopes `storage-ro,logging-write`. Code is shipped as a `git archive` tarball, so no GitHub credentials are placed on the VM.
+
+**Throughput benchmark of the real 125M model** (sequence length 2048, bf16 autocast, my training loop, 30 steps, L4 peak assumed 121 TFLOPS; MFU uses 6 x parameters x tokens/s, so it ignores attention FLOPs):
+
+| Config | Steady tokens/s | Peak GPU memory | MFU |
+|---|---|---|---|
+| micro-batch 8, eager (first attempt) | out of memory | above 22 GB | n/a |
+| micro-batch 4, eager | 14.7k | 11.9 GB | 9.1% |
+| micro-batch 8, `torch.compile` | **27.1k** | 15.9 GB | 16.8% |
+
+Compilation costs about 85 seconds once, at the first step. The first attempt exposed the cross-entropy memory problem listed in section 4.8; memory at micro-batch 8 is still dominated by activations (fp32 residual stream and RMSNorm intermediates), which compile reduces.
+
+**Projection for the full run on one L4:** 4.5B tokens at 27.1k tokens/s is about **46 hours** (3B tokens: about 31 hours). At roughly $1 per hour (an estimate, to be checked in the pricing calculator) that is on the order of $50 including disk. An A100 should be several times faster at about $3.5 to 4 per hour, likely a similar total cost with far less wall-clock time, but it needs A100 and A2-CPU quota in the chosen region.
+
+**Current state.** The VM is stopped (status TERMINATED), so there are no GPU or CPU charges; the 200 GB disk (about $24 per month, estimate) and the bucket (about $0.25 per month) remain. Costs so far are on the order of a couple of dollars.
+
+**Next:** decide between the L4 for the whole run and requesting A100 quota; run the proxy experiments (learning-rate sweep, data-mix check, architecture ablations); then the full pretraining run with checkpoints and resume.

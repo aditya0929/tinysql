@@ -12,7 +12,7 @@ Last updated: 2026-10-08.
 |---|---|
 | A. Corpus: download, clean, dedup, decontaminate | done (decontamination numbers in section 6.4) |
 | B. Tokenizer (own byte-level BPE) | **done and trained** on the real corpus (section 5.1); comparison against Hugging Face's trainer still to do |
-| C. Data pipeline (token shards, loader) | not started |
+| C. Data pipeline (token shards, loader) | **done**: 5.41B training tokens in `data/shards/` (section 6.5) |
 | D. Model from scratch + verification | **done**, matches a reference Llama to 1e-4 |
 | E. Pretraining (optimizer, loop, run) | not started |
 | F. Ablations and scaling | not started |
@@ -22,7 +22,7 @@ Last updated: 2026-10-08.
 | J. Benchmarking and failure analysis | not started |
 | K. Demo, model card, README | not started |
 
-Tests: **82 passing** (`python -m pytest tests`).
+Tests: **86 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -257,7 +257,29 @@ Zero hits across 4.7M documents is plausible: WikiSQL questions were written by 
 
 Limitation: only questions are checked; gold SQL strings will be added once the WikiSQL-to-SQL converter exists.
 
+### 6.5 Token shards and the loader (`data/build_shards.py`, `data/loader.py`, 3 tests)
+
+Every document is tokenized with the trained tokenizer, followed by `<|endoftext|>`, and written to flat `uint16` files (`data/shards/train/` and `data/shards/val/`, one file per source and row-group range, 60 files).
+
+- **Mix in the shards:** FineWeb-Edu and Stack Exchange whole; Gretel repeated 3 times; **70% of the Stack SQL files**, chosen by a "query score" (0 to 11 distinct query features: `SELECT`, `FROM`, `WHERE`, `JOIN`, `GROUP BY`, `ORDER BY`, `HAVING`, aggregates, `LIMIT`, `UNION`, CTEs). The histogram over 878,957 files: 461,218 score 0, then 74,518 / 61,612 / 110,028 / 70,086 / 40,922 / 26,708 / 19,241 / 9,747 / 3,675 / 1,027 / 175 for scores 1 to 11. Keeping 70% means every file with at least one query feature plus 43% of the score-0 files (612,761 files kept).
+- **Control-token safety:** web, code and Q&A text is encoded with `allow_special=False`; only the Gretel examples may produce `<schema>`/`<question>`/`<sql>` ids. Verified on the built shards: 0 unexpected special tokens in sampled FineWeb-Edu and Stack SQL shards.
+- **Validation split:** a deterministic 0.4% of documents per source (hash of the text), written separately.
+- **Loader:** memory-mapped files; a training example is any window of `seq_len + 1` consecutive tokens, drawn uniformly over all tokens (windows never cross a file boundary), so the training mix equals the shard mix; no padding; inputs are `tokens[:-1]`, targets `tokens[1:]`. The sampler state can be saved and restored for exact resume. Documents are packed back to back, so attention can cross a document boundary (standard for pretraining).
+
+Build time: 1,164 s on 14 workers (about 4.7M tokens/s). Real counts:
+
+| Source | Training docs | Training tokens | Share | Validation tokens |
+|---|---|---|---|---|
+| FineWeb-Edu | 3,589,789 | 3,838,959,370 | 71.0% | 15,515,778 |
+| Stack SQL | 612,761 | 1,424,490,027 | 26.3% | 6,090,553 |
+| Stack Exchange | 122,659 | 120,646,509 | 2.2% | 488,623 |
+| Gretel (x3) | 99,164 | 24,806,583 | 0.5% | 33,030 |
+| **Total** | | **5,408,902,489** | | **22,127,984** |
+
+**Correction to an earlier estimate.** Section 8 below originally estimated the SQL code at about 1.33B tokens, using 4 bytes per token. The trained tokenizer compresses SQL code at only about 2.7 bytes per token (aggregate; data-heavy files compress worst), so all 878,957 deduplicated SQL files are about 1.97B tokens, and the 70% selection (which favors larger, query-rich files) holds 1.42B of them. That made the SQL share 26.3% of tokens, not the roughly 19% expected from "70% of the files". Shards are kept as built; the training mix is to be set with sampling weights in the loader (see section 9).
+
 ---
+
 
 ## 7. Key decisions and why
 
@@ -276,24 +298,24 @@ Limitation: only questions are checked; gold SQL strings will be added once the 
 
 ## 8. Measured corpus after all processing
 
-Estimates use about 4 bytes per token for SQL and Q&A, and the dataset's own token count for FineWeb-Edu.
+Training tokens in the shards (measured with the trained tokenizer; the earlier byte-based estimates were wrong for SQL, see 6.5):
 
-| Slice | Text | Approx. tokens | Share of mix |
-|---|---|---|---|
-| FineWeb-Edu | 17.0 GB | 3.7B | about 71% |
-| Stack SQL | 5.3 GB | 1.33B | about 26% |
-| Stack Exchange | 0.47 GB | 0.12B | about 2% |
-| Gretel synthetic SQL | 0.04 GB | 0.01B | about 0.2% |
-| **Total** | | **about 5.2B** | |
+| Slice | Training tokens | Share of shards |
+|---|---|---|
+| FineWeb-Edu | 3.84B | 71.0% |
+| Stack SQL (70% of files, quality-selected) | 1.42B | 26.3% |
+| Stack Exchange | 0.12B | 2.2% |
+| Gretel synthetic SQL (3 repeats) | 0.025B | 0.5% |
+| **Total** | **5.41B** | |
 
-Plan: at shard-building time the SQL code slice can be sampled down to roughly 15 to 18% (or kept whole for a more SQL-heavy model), and the tiny Gretel slice repeated a few times. Pretraining on about 4 to 5B tokens is well above the compute-optimal point (about 2.5B for 125M parameters).
+Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5B for 125M parameters). The mix actually trained on is set at training time with per-source sampling weights, not by the shard contents.
 
 ---
 
 ## 9. What is next, in order
 
 1. Compare the trained tokenizer against Hugging Face's trainer on identical data (`tokenizer/compare_hf.py`).
-2. `build_shards.py` and `loader.py`: tokenize everything (web and code with `allow_special=False`), pack into `uint16` shards with a held-out validation shard, memory-mapped random-window batching.
+2. Add per-source sampling weights to the loader so the training mix is chosen at training time (default idea: about 78% FineWeb-Edu, 19% SQL code, 2.5% Stack Exchange, 0.5% Gretel), without rebuilding shards.
 3. Own AdamW (checked against `torch.optim.AdamW`), warmup and cosine schedule, training loop with gradient accumulation, precision switch (bf16, and fp16 with loss scaling for T4-class GPUs), checkpoint and exact resume, logging. Verify with a one-batch overfit and a resume test on CPU.
 4. Measure real tokens per second on a free Colab or Kaggle T4, then decide where the full run happens. The laptop's integrated GPU is not usable for training (compute-limited and poorly supported by PyTorch on Windows). The plan is a rented A100 or H100 for about a day for the final pretraining; small ablations can use a free T4.
 5. Ablations and scaling on small proxies; the full pretraining run.
@@ -305,12 +327,13 @@ Plan: at shard-building time the SQL code slice can be sampled down to roughly 1
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 82 tests
+python -m pytest tests                          # 86 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean
 python -m data.dedup                            # data/clean -> data/dedup
-python -m data.decontaminate                    # data/dedup -> data/final
+python -m data.decontaminate                    # data/dedup -> data/final (about 11 min)
+python -m data.build_shards                     # data/final -> data/shards (about 19 min)
 python -m tokenizer.train_tokenizer             # about 5 minutes -> tokenizer/tinysql_bpe.json
 ```
 

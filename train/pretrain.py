@@ -156,10 +156,12 @@ def train(user_cfg: dict):
             tps = tokens_per_step * (cfg["log_interval"] if step > 1 else 1) / (now - last_t)
             last_t = now
             mfu = 6 * n_params * tps / (cfg["peak_tflops"] * 1e12) if cfg["peak_tflops"] else None
+            mem = torch.cuda.max_memory_allocated() / 2**30 if device.type == "cuda" else None
             log.log(step, loss=loss_sum, lr=lr, grad_norm=float(grad_norm), tokens_per_s=tps, tokens=tokens_seen,
-                    skipped_steps=skipped, **({"mfu": mfu} if mfu else {}))
+                    skipped_steps=skipped, **({"mfu": mfu} if mfu else {}), **({"peak_mem_gb": mem} if mem else {}))
             print(f"step {step:6d} | loss {loss_sum:.4f} | lr {lr:.2e} | |g| {float(grad_norm):.2f} | {tps:,.0f} tok/s"
-                  + (f" | MFU {mfu:.1%}" if mfu else "") + (f" | skipped {skipped}" if skipped else ""), flush=True)
+                  + (f" | MFU {mfu:.1%}" if mfu else "") + (f" | {mem:.1f} GB peak" if mem else "")
+                  + (f" | skipped {skipped}" if skipped else ""), flush=True)
         if step % cfg["eval_interval"] == 0 or step == cfg["max_steps"]:
             val = evaluate(model, cfg, device, ctx, present)
             log.log(step, **{f"val_loss/{k}": v for k, v in val.items()})

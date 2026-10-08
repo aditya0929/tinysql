@@ -1,5 +1,0 @@
-4,932,736 parameters | device cpu | precision fp32 | 8,192 tokens/step | 300 steps = 0.00B tokens
-step      1 | loss 10.4011 | lr 1.50e-04 | |g| 1.19 | 2,383 tok/s
-step     10 | loss 9.6479 | lr 1.50e-03 | |g| 1.18 | 3,007 tok/s
-step     20 | loss 8.2360 | lr 3.00e-03 | |g| 0.72 | 2,713 tok/s
-step     30 | loss 7.8728 | lr 2.99e-03 | |g| 0.59 | 2,717 tok/s

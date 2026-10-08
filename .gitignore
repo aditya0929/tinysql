@@ -16,3 +16,5 @@ wandb/
 data/clean/
 data/dedup/
 *.parquet
+
+logs/

@@ -52,7 +52,7 @@ def choose_groups(source: str, target_mb: float, rng: random.Random):
     while i < len(groups) - 1 and size < target_mb * 1e6:
         path, g = groups[i]
         rows = pq.ParquetFile(path).metadata.row_group(g)
-        size += rows.total_byte_size * 4                       # parquet bytes -> rough text bytes (zstd ~4x)
+        size += rows.total_byte_size                           # uncompressed bytes, close to the text size
         chosen.append(groups[i])
         i += 1
     return chosen, groups[i]
@@ -106,11 +106,13 @@ def main():
     print("saved", args.out)
 
     print("\nbytes per token on held-out text (higher = better compression):")
+    print(f"  {'source':14s} {'aggregate':>9s} {'median doc':>11s}   (aggregate is dragged down by data-heavy docs)")
     for source, (path, g) in held_out.items():
         texts = pq.ParquetFile(path).read_row_group(g, columns=["text"]).column("text").to_pylist()[:300]
-        n_bytes = sum(len(t.encode("utf-8")) for t in texts)
-        n_tok = sum(len(tok.encode(t, allow_special=False)) for t in texts)
-        print(f"  {source:14s} {n_bytes / n_tok:5.2f}")
+        sizes = [len(t.encode("utf-8")) for t in texts]
+        toks = [len(tok.encode(t, allow_special=False)) for t in texts]
+        per_doc = sorted(b / n for b, n in zip(sizes, toks) if n)
+        print(f"  {source:14s} {sum(sizes) / sum(toks):9.2f} {per_doc[len(per_doc) // 2]:11.2f}")
     print("\nhow SQL pieces tokenize:")
     for s in [" SELECT", " FROM", " WHERE", " GROUP BY", " ORDER BY", " customer_id", "COUNT(*)", " INNER JOIN", " CREATE TABLE"]:
         print(f"  {s!r:16s} -> {[tok.decode([i]) for i in tok.encode(s, allow_special=False)]}")

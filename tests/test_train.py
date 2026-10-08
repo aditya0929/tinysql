@@ -100,3 +100,12 @@ def test_checkpoints_keep_only_the_last_two(tmp_path):
     for step in (1, 2, 3, 4):
         save_checkpoint(str(tmp_path), step, {"step": step})
     assert sorted(os.listdir(tmp_path)) == ["ckpt_0000003.pt", "ckpt_0000004.pt"]
+
+
+def test_override_parsing_handles_scientific_notation_without_a_dot():
+    assert pretrain.parse_override("peak_lr=7e-4") == ("peak_lr", 0.0007)
+    assert pretrain.parse_override("peak_lr=7.0e-4") == ("peak_lr", 0.0007)
+    assert pretrain.parse_override("max_steps=50") == ("max_steps", 50)
+    assert pretrain.parse_override("compile=true") == ("compile", True)
+    assert pretrain.parse_override("out_dir=runs/x") == ("out_dir", "runs/x")
+    assert pretrain.parse_override("sample_prompts=[]") == ("sample_prompts", [])

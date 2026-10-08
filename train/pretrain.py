@@ -173,6 +173,18 @@ def train(user_cfg: dict):
     return model, step
 
 
+def parse_override(kv: str):
+    """'peak_lr=7e-4' -> ('peak_lr', 0.0007). PyYAML reads '7e-4' as a string (YAML wants '7.0e-4'), so try float."""
+    k, v = kv.split("=", 1)
+    v = yaml.safe_load(v)
+    if isinstance(v, str):
+        try:
+            v = float(v)
+        except ValueError:
+            pass
+    return k, v
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -181,8 +193,8 @@ def main():
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
     for kv in args.set:
-        k, v = kv.split("=", 1)
-        cfg[k] = yaml.safe_load(v)
+        k, v = parse_override(kv)
+        cfg[k] = v
     train(cfg)
 
 

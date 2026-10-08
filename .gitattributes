@@ -1,0 +1,2 @@
+# shell scripts must keep Unix line endings so they run on the Linux GPU machines
+*.sh text eol=lf

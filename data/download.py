@@ -1,4 +1,4 @@
-"""Download the raw corpora into data/raw/<name>. Downloading is the only job of this file.
+﻿"""Download the raw corpora into data/raw/<name>. Downloading is the only job of this file.
 
     python -m data.download --dry-run      # list the files and sizes that would be fetched
     python -m data.download                # download everything
@@ -18,7 +18,7 @@ RAW = os.path.join("data", "raw")
 # patterns are fnmatch globs relative to the repo root
 HF_SOURCES = {
     "fineweb_edu": ("HuggingFaceFW/fineweb-edu", ["sample/10BT/00[0-4]_00000.parquet"]),
-    "stack_sql": ("bigcode/the-stack-dedup", ["data/sql/data-0000[0-7]-of-*.parquet"]),
+    "stack_sql": ("bigcode/the-stack-dedup", ["data/sql/data-*-of-*.parquet"]),
     "stackexchange": ("HuggingFaceTB/stackexchange_2025_md",
                       ["dba.stackexchange.com/*", "datascience.stackexchange.com/*", "README.md"]),
     "gretel_sql": ("gretelai/synthetic_text_to_sql", ["*.parquet", "README.md"]),

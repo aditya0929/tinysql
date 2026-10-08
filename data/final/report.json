@@ -1,0 +1,22 @@
+{
+ "fineweb_edu": {
+  "docs_in": 3604108,
+  "removed": 0,
+  "examples": []
+ },
+ "gretel_sql": {
+  "docs_in": 99561,
+  "removed": 0,
+  "examples": []
+ },
+ "stack_sql": {
+  "docs_in": 878957,
+  "removed": 0,
+  "examples": []
+ },
+ "stackexchange": {
+  "docs_in": 123159,
+  "removed": 0,
+  "examples": []
+ }
+}

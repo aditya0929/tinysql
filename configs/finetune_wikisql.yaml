@@ -1,0 +1,10 @@
+# WikiSQL fine-tuning of the pretrained base. base_ckpt is passed on the command line.
+# 56,355 training examples; batch 32 -> 1,761 steps per epoch.
+epochs: 3
+batch_size: 32
+peak_lr: 1.0e-4            # about 10x below the pretraining peak, the usual starting point for fine-tuning
+warmup_steps: 100
+min_lr_ratio: 0.1
+weight_decay: 0.0
+eval_examples: 1000        # dev subset scored after every epoch; the final number uses all 8,421 dev examples
+out_dir: runs/finetune_wikisql

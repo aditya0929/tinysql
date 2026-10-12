@@ -15,6 +15,9 @@ sync_up() { gcloud storage cp "$LOG" "gs://$BUCKET/results/baselines/train.log" 
 ( while true; do sleep 120; sync_up; done ) &
 SYNC_PID=$!
 
+# the GCP PyTorch image ships a torchaudio built against a different torch; transformers imports it when present
+# and crashes. Audio is not used here, so remove it.
+sudo python3 -m pip uninstall -y -q torchaudio >> "$LOG" 2>&1
 pip install --quiet --user "transformers>=4.45" >> "$LOG" 2>&1
 [ -f data/raw/wikisql/extracted/data/dev.db ] || tar xjf /tmp/wikisql.tar.bz2 --no-same-owner -C data/raw/wikisql/extracted >> "$LOG" 2>&1
 [ -f data/wikisql_sft/train.jsonl ] || python3 -m data.wikisql_to_sql >> "$LOG" 2>&1

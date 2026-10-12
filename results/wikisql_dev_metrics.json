@@ -1,0 +1,8 @@
+{
+ "n": 8421,
+ "exec_acc": 0.7841111506946918,
+ "validity": 0.9764873530459566,
+ "exact_match": 0.7064481653010332,
+ "seconds": 320.1,
+ "ckpt": "runs/finetune_wikisql/best.pt"
+}

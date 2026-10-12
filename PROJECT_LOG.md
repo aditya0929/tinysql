@@ -14,15 +14,15 @@ Last updated: 2026-10-08.
 | B. Tokenizer (own byte-level BPE) | **done and trained** on the real corpus (section 5.1); comparison against Hugging Face's trainer still to do |
 | C. Data pipeline (token shards, loader) | **done**: 5.41B training tokens in `data/shards/` (section 6.5) |
 | D. Model from scratch + verification | **done**, matches a reference Llama to 1e-4 |
-| E. Pretraining (optimizer, loop, run) | optimizer and loop **done** (section 11); GPU throughput **measured** (section 12); the full run is not started |
+| E. Pretraining (optimizer, loop, run) | **done**: 4.51B tokens, 8,600 steps, ~46 h on one L4 (section 13) |
 | F. Ablations and scaling | not started |
 | G. Instruction tuning | not started |
-| H. Text-to-SQL fine-tuning | not started |
+| H. Text-to-SQL fine-tuning | **done**: **78.4% execution accuracy on WikiSQL dev** (section 14) |
 | I. Decoding (beam, constrained) | generation done; beam and constrained not started |
-| J. Benchmarking and failure analysis | not started |
+| J. Benchmarking and failure analysis | dev evaluation and first component breakdown done (section 14); baselines, test-set score and full failure analysis not started |
 | K. Demo, model card, README | not started |
 
-Tests: **106 passing** (`python -m pytest tests`).
+Tests: **120 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -144,6 +144,8 @@ Each token produces a query, key, and value. Scores are `q . k / sqrt(d)`, maske
 | `xxhash` rejected `str` input in MinHash | dedup test | encode to bytes first |
 | Cross-entropy ran the 125M model out of GPU memory at micro-batch 8 (several fp32 copies of the 8 x 2048 x 32,768 logits) | first run on a real GPU | custom autograd function: saves only the original logits and one logsumexp per token, works in place, recomputes the softmax in the backward pass; gradient tests against PyTorch's loss |
 | The new loss corrupted its own input when logits were already fp32 (`.float()` returns the same tensor, so in-place ops modified the saved input) | the unit tests, on CPU | always copy explicitly (`to(torch.float32, copy=True)`); the bf16 GPU path would have hidden it |
+| Fine-tune crashed on the VM: `sqlite3.Connection.setconfig` does not exist on Python 3.10 (the laptop has 3.12) | first fine-tune launch (cost: about a minute of VM time) | check quoted column names against the table before executing (works on any version); keep `setconfig` only where it exists |
+| On Python 3.10, `set_authorizer(None)` raises, so every query looked invalid (a fine-tune would have reported 0% accuracy) | the new pre-flight tests that run **on the VM** before training | lift the read-only guard with a permit-all callback; the launcher now refuses to train if the VM's own tests fail |
 
 ---
 
@@ -329,7 +331,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 106 tests
+python -m pytest tests                          # 120 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean
@@ -392,3 +394,62 @@ Compilation costs about 85 seconds once, at the first step. The first attempt ex
 **Current state.** The VM is stopped (status TERMINATED), so there are no GPU or CPU charges; the 200 GB disk (about $24 per month, estimate) and the bucket (about $0.25 per month) remain. Costs so far are on the order of a couple of dollars.
 
 **Next:** decide between the L4 for the whole run and requesting A100 quota; run the proxy experiments (learning-rate sweep, data-mix check, architecture ablations); then the full pretraining run with checkpoints and resume.
+
+---
+
+## 13. The full pretraining run
+
+`scripts/run_main.sh` on one NVIDIA L4 (asia-southeast1-b), peak learning rate 1.2e-3 (from the proxy sweep: optimum near 1.4e-3 to 1.5e-3 on the 25M model, hedged down for the longer run and wider model), 200-step warmup, cosine decay to 1.2e-4, 524,288 tokens per step, two-phase data mix (section 11).
+
+- Started 2026-10-08 12:13 UTC, finished 2026-10-10 10:38 UTC with exit status 0: **8,600 steps, 4.51B tokens, about 46 hours**, steady 27.0 to 27.6k tokens/s (MFU about 17%), 17.3 GB peak GPU memory.
+- **0 skipped steps** over the whole run; gradient norm fell from about 10 to 0.12 to 0.14, with one harmless blip (1.04 at step 1,010).
+- The VM shut itself down at the end; checkpoints were backed up to the bucket every 5 minutes; a startup script would have resumed the run after a host restart (not needed).
+
+Validation loss (nats per token, fixed held-out batches):
+
+| Step | FineWeb-Edu | SQL code | Stack Exchange | Gretel |
+|---|---|---|---|---|
+| 1,000 | 3.563 | 1.335 | 3.160 | 1.720 |
+| 3,000 | 3.169 | 1.107 | 2.773 | 1.319 |
+| 5,000 | 3.035 | 1.037 | 2.630 | 1.218 |
+| 7,000 | 2.955 | 0.990 | 2.551 | 1.129 |
+| **8,600 (final)** | **2.939** | **0.958** | **2.462** | **1.054** |
+
+Every source improved at every checkpoint. At the data-mix switch (step 7,310) the training loss dropped by 0.481, as predicted beforehand (about 0.45) from the per-source losses; it reflects the easier SQL-heavy mix, not learning. The figure is `docs/figures/loss_curves.png` (`scripts/plot_loss.py`).
+
+Greedy samples on a fixed SQL prompt ("How many employees are there?" over `employees(id, name, salary)`) added an invented `WHERE` clause at every checkpoint until step 7,500, where the base model first produced the correct `SELECT COUNT(*) FROM employees;`.
+
+---
+
+## 14. WikiSQL fine-tuning and evaluation
+
+`scripts/run_finetune.sh` + `train/finetune_sql.py`: start from the step-8,600 checkpoint; prompt = `CREATE TABLE`-style schema + question, loss only on the SQL completion; batch 32, peak LR 1e-4, 100-step warmup, cosine, 3 epochs (5,283 steps, about 4 steps/s on the L4, about 32 minutes including per-epoch evaluation); the checkpoint with the best dev execution accuracy is kept. Pre-flight tests run on the VM before training.
+
+Per-epoch check on the first 1,000 dev examples: 68.3% (epoch 1), 70.8% (epoch 2), 73.4% (epoch 3).
+
+**Result on the full WikiSQL dev set (8,421 examples, greedy decoding, no constraints):**
+
+| Metric | Value |
+|---|---|
+| **Execution accuracy** | **78.41%** |
+| Validity (the SQL executed) | 97.65% |
+| Exact match (normalised text) | 70.64% |
+
+Checks on that number:
+- the per-epoch subset is the *first* 1,000 dev examples, which turn out to be harder (the same examples score 73.4% in the full run; random 1,000-example subsets span 76.2% to 80.1%), so the full-dev number is consistent;
+- 664 dev questions (7.9%) have an empty gold answer; excluding them, execution accuracy is 78.29%, so empty results do not inflate the score.
+
+Where the model is right and wrong (component accuracy, parsed from the generated SQL; all 8,421 predictions parse):
+
+| Component | Correct |
+|---|---|
+| select column | 94.8% |
+| aggregation (none / COUNT / SUM / ...) | 90.8% |
+| condition columns | 89.9% |
+| full WHERE clause incl. values (case-insensitive) | 83.5% |
+
+Before fine-tuning the estimate was a central range of 60% to 72% (point estimate about 65%); the measured 78.4% is at the top of the optimistic range given then. The test set has not been touched; it is scored once, at the end.
+
+Artifacts: fine-tuned weights `gs://tinysql-data-474078649724/checkpoints/finetune/best.pt` (477 MB), predictions and metrics under `results/finetune/` in the bucket; `results/wikisql_dev_metrics.json` in the repository.
+
+**Next:** schema-constrained decoding (target: the 2.35% invalid queries), the SmolLM2 baselines with the identical fine-tune, the full failure analysis, the test-set score, and the ablations on the 25M proxy.

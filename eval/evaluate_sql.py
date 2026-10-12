@@ -20,8 +20,10 @@ def normalize_sql(s: str) -> str:
 
 
 @torch.no_grad()
-def generate_grouped(model, prompts, stop_id: int, max_new_tokens: int = 160, max_batch: int = 64, device="cpu"):
-    """prompts: list of token-id lists. Returns, for each, the generated tokens up to (not including) stop_id."""
+def generate_grouped(model, prompts, stop_id, max_new_tokens: int = 160, max_batch: int = 64, device="cpu"):
+    """prompts: list of token-id lists. stop_id: one id or a list of ids.
+    Returns, for each prompt, the generated tokens up to (not including) the first stop id."""
+    stops = [stop_id] if isinstance(stop_id, int) else list(stop_id)
     out = [None] * len(prompts)
     by_len = defaultdict(list)
     for i, p in enumerate(prompts):
@@ -31,9 +33,10 @@ def generate_grouped(model, prompts, stop_id: int, max_new_tokens: int = 160, ma
         for s in range(0, len(idxs), max_batch):
             chunk = idxs[s:s + max_batch]
             ids = torch.tensor([prompts[i] for i in chunk], dtype=torch.long, device=device)
-            gen = generate(model, ids, max_new_tokens, temperature=0, stop_ids=[stop_id])[:, length:].tolist()
+            gen = generate(model, ids, max_new_tokens, temperature=0, stop_ids=stops)[:, length:].tolist()
             for i, row in zip(chunk, gen):
-                out[i] = row[:row.index(stop_id)] if stop_id in row else row
+                cut = next((j for j, t in enumerate(row) if t in stops), len(row))
+                out[i] = row[:cut]
     return out
 
 
@@ -41,7 +44,7 @@ def evaluate(model, tok, items, tables, executor: WikiSQLExecutor, device="cpu",
              max_batch=64, generator=None):
     """items: WikiSQL dev/test rows. Returns metrics plus per-example records for failure analysis.
     `generator(prompts, stop_id)` can replace the model decoder (used by tests and by beam/constrained decoding)."""
-    stop_id = tok.special_to_id["</sql>"]
+    stop_id = [tok.special_to_id["</sql>"], tok.special_to_id["<|endoftext|>"]]   # whichever the model emits first
     prompts = [tok.encode(prompt_text(it["question"], tables[it["table_id"]]["header"], tables[it["table_id"]]["types"]),
                           allow_special=True) for it in items]
     if generator is None:

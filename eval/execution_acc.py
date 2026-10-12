@@ -17,6 +17,13 @@ _READ_ONLY_ACTIONS = (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE
 def _authorizer(action, *_):
     """While model-generated SQL runs, allow reading only: anything else (INSERT, DROP, CREATE, ATTACH, PRAGMA...) is denied."""
     return sqlite3.SQLITE_OK if action in _READ_ONLY_ACTIONS else sqlite3.SQLITE_DENY
+
+
+def _allow_all(*_):
+    """Used to lift the read-only guard. (set_authorizer(None) only works from Python 3.11, so it is not used.)"""
+    return sqlite3.SQLITE_OK
+
+
 _NUM_PRECISION = 6
 
 
@@ -66,7 +73,7 @@ class WikiSQLExecutor:
             bad = unknown_identifiers(sql, set(column_names(self.tables[table_id]["header"])))
             if bad:
                 return False, f"unknown column(s): {bad}"
-            self.con.set_authorizer(None)
+            self.con.set_authorizer(_allow_all)
             self._use_table(table_id)                       # rebuilt for every query, so a stray DROP VIEW cannot break later ones
             self.con.set_authorizer(_authorizer)
             deadline = time.time() + self.timeout_s
@@ -77,7 +84,7 @@ class WikiSQLExecutor:
             return False, f"{type(e).__name__}: {e}"
         finally:
             self.con.set_progress_handler(None, 0)
-            self.con.set_authorizer(None)
+            self.con.set_authorizer(_allow_all)
 
 
 def execution_match(executor: WikiSQLExecutor, table_id: str, gold_sql: str, pred_sql: str):

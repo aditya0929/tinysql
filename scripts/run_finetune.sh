@@ -22,6 +22,13 @@ if [ ! -f data/raw/wikisql/extracted/data/dev.db ]; then
   tar xjf /tmp/wikisql.tar.bz2 --no-same-owner -C data/raw/wikisql/extracted >> "$LOG" 2>&1
 fi
 python3 -m data.wikisql_to_sql >> "$LOG" 2>&1
+# run the relevant tests on THIS machine first (its Python/library versions can differ from the laptop's)
+if ! python3 -m pytest -q tests/test_wikisql_converter.py tests/test_finetune.py tests/test_model.py >> "$LOG" 2>&1; then
+  echo "pre-flight tests FAILED on the VM; not training" >> "$LOG"
+  kill $SYNC_PID 2> /dev/null; sync_up
+  exit 1
+fi
+echo "pre-flight tests passed" >> "$LOG"
 python3 -m train.finetune_sql --config configs/finetune_wikisql.yaml --set base_ckpt="$BASE_CKPT" out_dir="$OUT" "$@" >> "$LOG" 2>&1
 echo "finetune exited with status $?" >> "$LOG"
 python3 -m eval.run_eval --ckpt "$OUT/best.pt" --split dev --out "$OUT" >> "$LOG" 2>&1

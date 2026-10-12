@@ -84,3 +84,22 @@ def test_converter_matches_the_official_structured_query_on_real_data():
             mismatches.append((it["question"], to_sql(q, t["header"]), mine, ref))
     assert checked == 3000
     assert len(mismatches) / checked < 0.005, mismatches[:3]
+
+
+def test_unknown_identifiers_ignores_text_inside_string_literals():
+    from eval.execution_acc import unknown_identifiers
+    allowed = {"Player", "No.", "School"}
+    assert unknown_identifiers('SELECT "Player" FROM t WHERE "School" = \'say "Nope" here\'', allowed) == []
+    assert unknown_identifiers('SELECT "Nope" FROM t WHERE "Also Bad" > \'1\'', allowed) == ["Also Bad", "Nope"]
+
+
+def test_hallucinated_column_is_invalid_even_if_sqlite_treats_it_as_text(tmp_path):
+    """Simulates the VM's Python 3.10, where the double-quote quirk cannot be switched off."""
+    import sqlite3
+    db, tables = make_db(tmp_path)
+    ex = WikiSQLExecutor(db, tables)
+    if hasattr(ex.con, "setconfig"):
+        ex.con.setconfig(sqlite3.SQLITE_DBCONFIG_DQS_DML, True)      # turn the quirk back ON
+    ok, msg = ex.run("1-5", 'SELECT "Nope" FROM t')
+    assert not ok and "Nope" in msg
+    assert ex.run("1-5", 'SELECT "Player" FROM t WHERE "School" = \'duke\'')[0]

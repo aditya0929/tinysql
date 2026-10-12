@@ -20,8 +20,19 @@ def _authorizer(action, *_):
 _NUM_PRECISION = 6
 
 
+_IDENT = re.compile(r'"((?:[^"]|"")*)"')
+
+
 def lower_literals(sql: str) -> str:
     return _STRING.sub(lambda m: "'" + m.group(1).lower() + "'", sql)
+
+
+def unknown_identifiers(sql: str, allowed) -> list:
+    """Double-quoted names in the SQL that are not real columns (text inside 'string literals' is ignored).
+    SQLite would otherwise silently treat an unknown "name" as a string, hiding a hallucinated column."""
+    without_strings = _STRING.sub("''", sql)
+    names = {m.replace('""', '"') for m in _IDENT.findall(without_strings)}
+    return sorted(n for n in names if n not in allowed and n != "t")
 
 
 def normalize(rows):
@@ -35,10 +46,11 @@ def normalize(rows):
 class WikiSQLExecutor:
     def __init__(self, db_path: str, tables: dict, timeout_s: float = 2.0):
         self.con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)      # the database file itself is read-only
-        # SQLite quirk: an unknown "double-quoted name" silently becomes a string literal. Turn that off so a
-        # hallucinated column is a real error and the validity rate is honest.
-        self.con.setconfig(sqlite3.SQLITE_DBCONFIG_DQS_DML, False)
-        self.con.setconfig(sqlite3.SQLITE_DBCONFIG_DQS_DDL, False)
+        # SQLite quirk: an unknown "double-quoted name" silently becomes a string literal. Turn that off where the
+        # Python version allows it (3.12+); unknown_identifiers() below enforces the same rule on any version.
+        if hasattr(self.con, "setconfig"):
+            self.con.setconfig(sqlite3.SQLITE_DBCONFIG_DQS_DML, False)
+            self.con.setconfig(sqlite3.SQLITE_DBCONFIG_DQS_DDL, False)
         self.tables = tables
         self.timeout_s = timeout_s
 
@@ -51,6 +63,9 @@ class WikiSQLExecutor:
     def run(self, table_id: str, sql: str):
         """-> (ok, normalized rows or error text). Never raises on bad SQL; aborts runaway queries."""
         try:
+            bad = unknown_identifiers(sql, set(column_names(self.tables[table_id]["header"])))
+            if bad:
+                return False, f"unknown column(s): {bad}"
             self.con.set_authorizer(None)
             self._use_table(table_id)                       # rebuilt for every query, so a stray DROP VIEW cannot break later ones
             self.con.set_authorizer(_authorizer)

@@ -43,3 +43,26 @@ def test_reported_loss_is_the_full_batch_loss():
     expected = tiny_hf_model()(input_ids=ids, attention_mask=mask, labels=labels).loss.item()
     got = accumulate_backward(tiny_hf_model(), batch, micro_batch=4, pad_id=0, device=torch.device("cpu"))
     assert abs(got - expected) < 1e-5
+
+
+def test_hf_token_bytes_round_trip_including_non_ascii():
+    from eval.baselines.constrained_hf import HFTokenBytes
+    tok = transformers.AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM2-135M")
+    vb = HFTokenBytes(tok)
+    text = 'SELECT "Driver\'s Age" FROM t WHERE "Song" = \'Şımarık Tarkan\' AND x > \'1,200.5\';'
+    ids = tok(text, add_special_tokens=False)["input_ids"]
+    assert b"".join(vb.vocab[i] for i in ids) == text.encode("utf-8")
+    assert tok.eos_token_id in vb.id_to_special and vb.special_to_id["</sql>"] == tok.eos_token_id
+
+
+def test_hf_adapter_cached_decoding_matches_full_forward():
+    from eval.baselines.constrained_hf import HFModelAdapter
+    model = HFModelAdapter(tiny_hf_model())
+    ids = torch.randint(1, 50, (2, 9))
+    full, _, _ = model(ids)
+    out, _, cache = model(ids[:, :5])
+    pieces = [out]
+    for t in range(5, 9):
+        out, _, cache = model(ids[:, t:t + 1], start_pos=t, past_kvs=cache)
+        pieces.append(out)
+    assert torch.allclose(full, torch.cat(pieces, dim=1), atol=1e-5)

@@ -23,6 +23,8 @@ class SqlGrammar:
         max_value_bytes: without a question, caps value length so a model cannot ramble inside a value forever."""
         self.cols = [('"' + c.replace('"', '""') + '"').encode("utf-8") for c in columns]
         self.q = question.lower() if question is not None else None
+        # multi-byte characters a value may use (any case), for looking ahead over an unfinished character
+        self.q_chars = {c for c in (question or "") + (question or "").upper() + (question or "").lower() if len(c.encode("utf-8")) > 1}
         self.max_value_bytes = max_value_bytes
 
     # ----------------------------------------------------------------------------- small parsers
@@ -53,14 +55,32 @@ class SqlGrammar:
                         continue
                     yield from self._lit(s, k, b")")
 
+    @staticmethod
+    def _utf8_prefix(content: bytes):
+        """-> (text, complete) if content is valid UTF-8, allowing only an unfinished character at the very end;
+        None if it contains bytes that can never form valid UTF-8 (e.g. a stray continuation byte)."""
+        try:
+            return content.decode("utf-8"), True
+        except UnicodeDecodeError as e:
+            if e.reason == "unexpected end of data":
+                return content[:e.start].decode("utf-8"), False
+            return None
+
     def _content_ok(self, content: bytes, final: bool) -> bool:
         if final and not content:
             return False                                    # values are never empty
+        decoded = self._utf8_prefix(bytes(content))
+        if decoded is None or (final and not decoded[1]):
+            return False                                    # garbage bytes, or a value ending mid-character
         if self.q is None:
             return len(content) <= self.max_value_bytes
-        # Unicode-aware lowercase (bytes.lower() only folds ASCII: 'Ş' must match 'ş'). An incomplete multi-byte
-        # character at the end is ignored until its remaining bytes arrive.
-        return bytes(content).decode("utf-8", errors="ignore").lower() in self.q
+        text, complete = decoded
+        if complete:                                        # Unicode-aware lowercase: 'Ş' must match 'ş'
+            return text.lower() in self.q
+        # an unfinished character: viable only if some character of the question starts with these bytes and keeps
+        # the value a substring of the question (otherwise decoding would reach a dead end)
+        tail = bytes(content)[len(text.encode("utf-8")):]
+        return any(c.encode("utf-8").startswith(tail) and (text + c).lower() in self.q for c in self.q_chars)
 
     def _value(self, s, i):
         for j in self._lit(s, i, b"'"):

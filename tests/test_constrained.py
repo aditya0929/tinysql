@@ -78,3 +78,20 @@ def test_even_a_random_model_produces_only_valid_sql():
     for out, gram in zip(outs, grammars):
         text = b"".join(tok.vocab[t] for t in out)
         assert gram.check(text) == "complete", text
+
+
+def test_values_must_be_valid_utf8():
+    q = "Who managed Atlético?"
+    gram = SqlGrammar(COLS, q)
+    head = b'SELECT "Player" FROM t WHERE "Player" = \'Atl'
+    assert gram.check(head + "é".encode()[:1]) == "prefix"            # first byte of a 2-byte character: wait for the rest
+    assert gram.check(head + b"\x80") == "invalid"                      # a stray continuation byte can never be valid
+    assert gram.check(head + "é".encode()[:1] + b"'") == "invalid"      # cannot close a value mid-character
+    assert SqlGrammar(COLS, None).check(head + b"\xff") == "invalid"    # the same rule without the question constraint
+
+
+def test_unfinished_character_must_lead_somewhere_in_the_question():
+    head = b'SELECT "Player" FROM t WHERE "Player" = \'H'
+    assert SqlGrammar(COLS, "who played for haugar").check(head + "é".encode()[:1]) == "invalid"   # no é after 'h' in question: dead end
+    assert SqlGrammar(COLS, "who played for hé fc").check(head + "é".encode()[:1]) == "prefix"     # 'hé' is in the question
+    assert SqlGrammar(COLS, "who played for hÉ fc").check(head + "é".encode()) == "prefix"         # case-insensitive

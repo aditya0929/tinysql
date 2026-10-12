@@ -103,3 +103,22 @@ def test_hallucinated_column_is_invalid_even_if_sqlite_treats_it_as_text(tmp_pat
     ok, msg = ex.run("1-5", 'SELECT "Nope" FROM t')
     assert not ok and "Nope" in msg
     assert ex.run("1-5", 'SELECT "Player" FROM t WHERE "School" = \'duke\'')[0]
+
+
+def test_apostrophes_in_column_names_and_quotes_in_values():
+    from eval.execution_acc import lex, lower_literals, unknown_identifiers
+    sql = 'SELECT "Driver\'s Age" FROM t WHERE "Men\'s singles" = \'O\'\'Neil "Jr"\' AND "Driver\'s Age" > \'24\';'
+    assert unknown_identifiers(sql, {"Driver's Age", "Men's singles"}) == []
+    assert [p[1] for p in lex(sql) if p[0] == "ident"] == ["Driver's Age", "Men's singles", "Driver's Age"]
+    assert lower_literals(sql) == 'SELECT "Driver\'s Age" FROM t WHERE "Men\'s singles" = \'o\'\'neil "jr"\' AND "Driver\'s Age" > \'24\';'
+
+
+def test_executor_handles_apostrophe_columns(tmp_path):
+    import sqlite3
+    path = str(tmp_path / "a.db")
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE table_1_9 (col0 text, col1 real)")
+    con.executemany("INSERT INTO table_1_9 VALUES (?,?)", [("ann", 30.0), ("bob", 20.0)])
+    con.commit(); con.close()
+    ex = WikiSQLExecutor(path, {"1-9": {"header": ["Driver's Name", "Driver's Age"], "types": ["text", "real"]}})
+    assert ex.run("1-9", 'SELECT "Driver\'s Name" FROM t WHERE "Driver\'s Age" > \'24\';') == (True, [("ann",)])

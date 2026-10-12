@@ -1,8 +1,20 @@
 {
- "n": 8421,
- "exec_acc": 0.7841111506946918,
- "validity": 0.9764873530459566,
- "exact_match": 0.7064481653010332,
- "seconds": 320.1,
- "ckpt": "runs/finetune_wikisql/best.pt"
+ "greedy": {
+  "n": 8421,
+  "exec_acc": 0.7845861536634604,
+  "validity": 0.9773186082413015,
+  "exact_match": 0.7064481653010332
+ },
+ "schema": {
+  "n": 8421,
+  "exec_acc": 0.7968174801092507,
+  "validity": 1.0,
+  "exact_match": 0.7141669635435222
+ },
+ "values": {
+  "n": 8421,
+  "exec_acc": 0.8146300914380715,
+  "validity": 1.0,
+  "exact_match": 0.730317064481653
+ }
 }

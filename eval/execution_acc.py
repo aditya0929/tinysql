@@ -4,13 +4,11 @@ The databases name their columns col0, col1, ... and store text lower-cased. For
 VIEW called `t` that renames the columns to the real header names, so the model's SQL runs unchanged. String literals
 in the SQL are lower-cased before execution to match the lower-cased data (this is also what the official evaluator does).
 """
-import re
 import sqlite3
 import time
 
 from data.wikisql_to_sql import column_names, quote_ident
 
-_STRING = re.compile(r"'((?:[^']|'')*)'")
 _READ_ONLY_ACTIONS = (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION)
 
 
@@ -27,18 +25,54 @@ def _allow_all(*_):
 _NUM_PRECISION = 6
 
 
-_IDENT = re.compile(r'"((?:[^"]|"")*)"')
+def lex(sql: str):
+    """Split SQL into ("code", text), ("ident", name, closed) and ("string", text, closed) pieces, reading left to
+    right so that an apostrophe inside a "Driver's Age" identifier, or a double quote inside a 'string', is handled
+    correctly (regexes for one quote kind cannot see the other). Doubled quotes are escapes in both."""
+    out, buf, i, n = [], [], 0, len(sql)
+    while i < n:
+        ch = sql[i]
+        if ch not in "'\"":
+            buf.append(ch)
+            i += 1
+            continue
+        if buf:
+            out.append(("code", "".join(buf)))
+            buf = []
+        j, content = i + 1, []
+        while j < n:
+            if sql[j] == ch:
+                if j + 1 < n and sql[j + 1] == ch:
+                    content.append(ch)
+                    j += 2
+                    continue
+                break
+            content.append(sql[j])
+            j += 1
+        out.append(("ident" if ch == '"' else "string", "".join(content), j < n))
+        i = j + 1
+    if buf:
+        out.append(("code", "".join(buf)))
+    return out
 
 
 def lower_literals(sql: str) -> str:
-    return _STRING.sub(lambda m: "'" + m.group(1).lower() + "'", sql)
+    """Lower-case the contents of 'string literals' only (identifiers and keywords keep their case)."""
+    parts = []
+    for p in lex(sql):
+        if p[0] == "code":
+            parts.append(p[1])
+        else:
+            q = '"' if p[0] == "ident" else "'"
+            text = p[1] if p[0] == "ident" else p[1].lower()
+            parts.append(q + text.replace(q, q + q) + (q if p[2] else ""))
+    return "".join(parts)
 
 
 def unknown_identifiers(sql: str, allowed) -> list:
     """Double-quoted names in the SQL that are not real columns (text inside 'string literals' is ignored).
     SQLite would otherwise silently treat an unknown "name" as a string, hiding a hallucinated column."""
-    without_strings = _STRING.sub("''", sql)
-    names = {m.replace('""', '"') for m in _IDENT.findall(without_strings)}
+    names = {p[1] for p in lex(sql) if p[0] == "ident"}
     return sorted(n for n in names if n not in allowed and n != "t")
 
 

@@ -10,6 +10,7 @@ import time
 import torch
 
 from data.wikisql_to_sql import BASE, load_split
+from decode.constrained import make_constrained_generator
 from eval.evaluate_sql import evaluate
 from eval.execution_acc import WikiSQLExecutor
 from model.config import ModelConfig
@@ -32,6 +33,8 @@ def main():
     ap.add_argument("--out", default="runs/eval")
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--tokenizer", default=os.path.join("tokenizer", "tinysql_bpe.json"))
+    ap.add_argument("--decode", default="greedy", choices=["greedy", "schema", "values"],
+                    help="greedy: unconstrained; schema: grammar + real columns only; values: also values copied from the question")
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,16 +45,19 @@ def main():
     executor = WikiSQLExecutor(os.path.join(BASE, f"{args.split}.db"), tables)
 
     t0 = time.time()
-    metrics, records = evaluate(model, tok, items, tables, executor, device=device, max_batch=args.batch)
+    generator = None if args.decode == "greedy" else make_constrained_generator(
+        model, tok, items, tables, values_from_question=args.decode == "values", device=device, max_batch=args.batch)
+    metrics, records = evaluate(model, tok, items, tables, executor, device=device, max_batch=args.batch, generator=generator)
+    metrics["decode"] = args.decode
     metrics["seconds"] = round(time.time() - t0, 1)
     metrics["ckpt"] = args.ckpt
     os.makedirs(args.out, exist_ok=True)
-    with open(os.path.join(args.out, f"{args.split}_metrics.json"), "w") as f:
+    with open(os.path.join(args.out, f"{args.split}_{args.decode}_metrics.json"), "w") as f:
         json.dump(metrics, f, indent=1)
-    with open(os.path.join(args.out, f"{args.split}_predictions.jsonl"), "w", encoding="utf-8") as f:
+    with open(os.path.join(args.out, f"{args.split}_{args.decode}_predictions.jsonl"), "w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print(f"{args.split}: {metrics['n']:,} examples | execution accuracy {metrics['exec_acc']:.2%} | "
+    print(f"{args.split} [{args.decode}]: {metrics['n']:,} examples | execution accuracy {metrics['exec_acc']:.2%} | "
           f"validity {metrics['validity']:.2%} | exact match {metrics['exact_match']:.2%} | {metrics['seconds']:.0f}s", flush=True)
 
 

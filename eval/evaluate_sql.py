@@ -51,11 +51,16 @@ def evaluate(model, tok, items, tables, executor: WikiSQLExecutor, device="cpu",
         gens = generate_grouped(model, prompts, stop_id, max_new_tokens, max_batch, device)
     else:
         gens = generator(prompts, stop_id)
+    return score_predictions(items, tables, executor, [tok.decode(g).strip() for g in gens])
+
+
+def score_predictions(items, tables, executor: WikiSQLExecutor, preds):
+    """Score SQL strings from ANY model (ours or a baseline) the same way. preds[i] answers items[i]."""
     records, n_valid, n_correct, n_exact = [], 0, 0, 0
-    for it, g in zip(items, gens):
+    for it, pred in zip(items, preds):
         t = tables[it["table_id"]]
         gold = to_sql(it["sql"], t["header"])
-        pred = tok.decode(g).strip()
+        pred = pred.strip()
         valid, correct = execution_match(executor, it["table_id"], gold, pred)
         exact = normalize_sql(pred) == normalize_sql(gold)
         n_valid, n_correct, n_exact = n_valid + valid, n_correct + correct, n_exact + exact

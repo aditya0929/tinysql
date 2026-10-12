@@ -43,6 +43,23 @@ def collate(batch, pad_id):
     return ids, labels, mask                       # HF shifts labels internally
 
 
+def accumulate_backward(model, batch, micro_batch, pad_id, device) -> float:
+    """Backward pass for one optimiser batch, done in micro-batches to fit in memory, with exactly the gradient of the
+    whole batch: each micro-batch's mean loss is weighted by its share of the batch's trained tokens (HF shifts labels
+    by one, so a sequence's trained tokens are its labels[1:] that are not IGNORE). Returns the batch's mean loss."""
+    chunks = [batch[k:k + micro_batch] for k in range(0, len(batch), micro_batch)]
+    counts = [sum(sum(1 for t in l[1:] if t != IGNORE) for _, l in c) for c in chunks]
+    total = max(1, sum(counts))
+    loss_val = 0.0
+    for chunk, cnt in zip(chunks, counts):
+        ids, labels, mask = collate(chunk, pad_id)
+        with torch.autocast(device.type, dtype=torch.bfloat16, enabled=device.type == "cuda"):
+            part = model(input_ids=ids.to(device), attention_mask=mask.to(device), labels=labels.to(device)).loss
+        (part * cnt / total).backward()
+        loss_val += part.item() * cnt / total
+    return loss_val
+
+
 @torch.no_grad()
 def generate_sql(model, tok, items, tables, device, batch=32, max_new_tokens=160):
     """Greedy, left-padded batches; the answer is the text before '</sql>'."""
@@ -70,6 +87,7 @@ def main():
     ap.add_argument("--sft_dir", default=os.path.join("data", "wikisql_sft"))
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--batch_size", type=int, default=32)
+    ap.add_argument("--micro_batch", type=int, default=8, help="memory only: the optimiser still sees batches of --batch_size")
     ap.add_argument("--peak_lr", type=float, default=1e-4)
     ap.add_argument("--warmup_steps", type=int, default=100)
     ap.add_argument("--eval_examples", type=int, default=1000)
@@ -112,11 +130,9 @@ def main():
             lr = cosine_lr(step, max_steps, args.peak_lr, args.warmup_steps, 0.1)
             for g in optim.param_groups:
                 g["lr"] = lr
-            ids, labels, mask = collate([train[i] for i in order[s * args.batch_size:(s + 1) * args.batch_size]], tok.pad_token_id)
-            with torch.autocast(device.type, dtype=torch.bfloat16, enabled=device.type == "cuda"):
-                loss = model(input_ids=ids.to(device), attention_mask=mask.to(device), labels=labels.to(device)).loss
+            batch = [train[i] for i in order[s * args.batch_size:(s + 1) * args.batch_size]]
             optim.zero_grad()
-            loss.backward()
+            loss = torch.tensor(accumulate_backward(model, batch, args.micro_batch, tok.pad_token_id, device))
             norm = clip_grad_norm_(params, 1.0)
             if torch.isfinite(norm):
                 optim.step()

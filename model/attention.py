@@ -61,8 +61,9 @@ class GroupedQueryAttention(nn.Module):
         k = self.k_proj(x).view(B, T, self.n_kv_heads, self.head_dim).transpose(1, 2)   # (B, KV, T, D)
         v = self.v_proj(x).view(B, T, self.n_kv_heads, self.head_dim).transpose(1, 2)
 
-        q = rope(q, start_pos)
-        k = rope(k, start_pos)               # cache stores already-rotated keys
+        if rope is not None:                 # None when the model uses learned absolute positions instead
+            q = rope(q, start_pos)
+            k = rope(k, start_pos)           # cache stores already-rotated keys
 
         if past_kv is not None:
             assert past_kv[0].shape[2] == start_pos, "start_pos must equal the cached length"

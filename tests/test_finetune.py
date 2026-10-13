@@ -88,3 +88,12 @@ def test_finetune_runs_end_to_end_on_real_wikisql(tmp_path):
     assert os.path.exists(tmp_path / "ft" / "best.pt") and 0.0 <= best <= 1.0
     saved = torch.load(tmp_path / "ft" / "best.pt", weights_only=False)
     assert set(saved["dev_metrics"]) >= {"exec_acc", "validity", "exact_match"}
+
+
+@pytest.mark.skipif(not (os.path.exists(os.path.join("data", "wikisql_sft", "train.jsonl")) and os.path.exists(os.path.join(BASE, "dev.db"))),
+                    reason="run python -m data.wikisql_to_sql first")
+def test_finetune_from_random_init_for_the_no_pretraining_control(tmp_path):
+    cfg = dict(vocab_size=32768, d_model=32, n_layers=1, n_heads=4, n_kv_heads=2, d_ff=64, max_seq_len=1024)
+    _, best = finetune(dict(base_ckpt="random", model=cfg, out_dir=str(tmp_path), epochs=1, batch_size=8,
+                            limit_train=32, eval_examples=8, device="cpu", warmup_steps=2))
+    assert 0.0 <= best <= 1.0 and os.path.exists(tmp_path / "best.pt")

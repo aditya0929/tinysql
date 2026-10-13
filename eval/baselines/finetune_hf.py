@@ -93,11 +93,12 @@ def main():
     ap.add_argument("--eval_examples", type=int, default=1000)
     ap.add_argument("--limit_train", type=int, default=None)
     ap.add_argument("--full_dev", action="store_true", help="after training, score the best epoch on all dev questions")
+    ap.add_argument("--seed", type=int, default=0, help="controls the order of the training data")
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    torch.manual_seed(0)
-    rng = random.Random(0)
+    torch.manual_seed(args.seed)
+    rng = random.Random(args.seed)
     tok = AutoTokenizer.from_pretrained(args.model)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token

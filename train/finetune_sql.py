@@ -74,9 +74,15 @@ def finetune(user_cfg: dict):
 
     tok = BPETokenizer.load(cfg["tokenizer"])
     pad_id = tok.special_to_id["<|pad|>"]
-    state = torch.load(cfg["base_ckpt"], map_location="cpu", weights_only=False)
-    model = TinySQL(ModelConfig(**state["cfg"]["model"]))
-    model.load_state_dict(state["model"])
+    if cfg["base_ckpt"] in (None, "random"):
+        # the no-pretraining control: the same architecture with freshly initialised weights
+        model_cfg = cfg.get("model") or yaml.safe_load(open(os.path.join("configs", "tinysql_125m.yaml")))["model"]
+        state = {"cfg": {"model": model_cfg}}
+        model = TinySQL(ModelConfig(**model_cfg))
+    else:
+        state = torch.load(cfg["base_ckpt"], map_location="cpu", weights_only=False)
+        model = TinySQL(ModelConfig(**state["cfg"]["model"]))
+        model.load_state_dict(state["model"])
     model.to(device)
 
     train_rows = load_jsonl(os.path.join(cfg["sft_dir"], "train.jsonl"))

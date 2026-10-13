@@ -60,6 +60,8 @@ class TinySQL(nn.Module):
         self.final_norm = RMSNorm(cfg.d_model, cfg.norm_eps)
         self.lm_head = None if cfg.tie_embeddings else Linear(cfg.d_model, cfg.vocab_size, std=cfg.init_std)
         self.rope = RotaryEmbedding(cfg.head_dim, cfg.max_seq_len, cfg.rope_theta)   # shared by all layers
+        # ablation only: GPT-2-style learned absolute positions instead of RoPE
+        self.pos = Embedding(cfg.max_seq_len, cfg.d_model, std=cfg.init_std) if cfg.pos_emb == "learned" else None
 
     def num_params(self) -> int:
         return sum(p.numel() for p in self.parameters())
@@ -68,9 +70,13 @@ class TinySQL(nn.Module):
         """ids: (B, T) token ids. Returns (logits (B, T, vocab), loss or None, list of per-layer (k, v))."""
         assert start_pos + ids.shape[1] <= self.cfg.max_seq_len, "sequence longer than max_seq_len"
         x = self.embed(ids)
+        rope = self.rope
+        if self.pos is not None:
+            x = x + self.pos.weight[start_pos:start_pos + ids.shape[1]]
+            rope = None                                             # positions are already in x
         new_kvs = []
         for i, block in enumerate(self.blocks):
-            x, kv = block(x, self.rope, start_pos, None if past_kvs is None else past_kvs[i])
+            x, kv = block(x, rope, start_pos, None if past_kvs is None else past_kvs[i])
             new_kvs.append(kv)
         x = self.final_norm(x)
         logits = x @ self.embed.weight.T if self.lm_head is None else self.lm_head(x)   # tied head reuses E

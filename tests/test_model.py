@@ -91,3 +91,28 @@ def test_cross_entropy_upstream_gradient_scales():
     logits.grad = None
     cross_entropy(logits, targets).backward()
     assert torch.allclose(g3, 3.0 * logits.grad, atol=1e-6)
+
+
+def test_learned_position_variant_counts_and_caches_correctly():
+    cfg = small_cfg(pos_emb="learned")
+    model = TinySQL(cfg).eval()
+    assert model.num_params() == cfg.expected_params() == small_cfg().expected_params() + cfg.max_seq_len * cfg.d_model
+    ids = torch.randint(0, cfg.vocab_size, (1, 12))
+    with torch.no_grad():
+        full, _, _ = model(ids)
+        out, _, kvs = model(ids[:, :7])
+        pieces = [out]
+        for t in range(7, 12):
+            out, _, kvs = model(ids[:, t:t + 1], start_pos=t, past_kvs=kvs)
+            pieces.append(out)
+    assert torch.allclose(full, torch.cat(pieces, dim=1), atol=1e-4)
+
+
+def test_learned_positions_make_order_matter_without_rope():
+    torch.manual_seed(0)
+    model = TinySQL(small_cfg(pos_emb="learned")).eval()
+    ids = torch.tensor([[5, 6, 7, 8]])
+    with torch.no_grad():
+        a, _, _ = model(ids)
+        b, _, _ = model(ids.flip(1))
+    assert not torch.allclose(a[0, -1], b[0, -1], atol=1e-4)

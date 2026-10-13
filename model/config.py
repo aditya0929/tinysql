@@ -15,8 +15,10 @@ class ModelConfig:
     tie_embeddings: bool = True
     init_std: float = 0.02      # std of the normal distribution used to initialise weights
     fused_attention: bool = True    # PyTorch fused kernel (fast); False = my manual attention
+    pos_emb: str = "rope"       # "rope" (default) or "learned" absolute position embeddings (for the ablation)
 
     def __post_init__(self):
+        assert self.pos_emb in ("rope", "learned"), "pos_emb must be 'rope' or 'learned'"
         assert self.d_model % self.n_heads == 0, "d_model must split evenly into heads"
         assert self.n_heads % self.n_kv_heads == 0, "query heads must split evenly into KV groups"
 
@@ -39,4 +41,6 @@ class ModelConfig:
         total = self.vocab_size * d + self.n_layers * per_layer + d   # + final norm
         if not self.tie_embeddings:
             total += self.vocab_size * d
+        if self.pos_emb == "learned":
+            total += self.max_seq_len * d                # one learned vector per position
         return total

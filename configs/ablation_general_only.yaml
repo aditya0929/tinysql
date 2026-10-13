@@ -1,0 +1,23 @@
+# ablation: pretrain on FineWeb-Edu only (no SQL code, Q&A or Gretel data). 150M tokens, peak LR 1.4e-3 (proxy sweep optimum). Same seed and data order.
+model: {vocab_size: 32768, d_model: 384, n_layers: 8, n_heads: 6, n_kv_heads: 2, d_ff: 1024,
+  max_seq_len: 1024}
+seq_len: 1024
+micro_batch: 16
+grad_accum: 8
+max_steps: 1150
+warmup_steps: 50
+peak_lr: 0.0014
+min_lr_ratio: 0.1
+weight_decay: 0.1
+grad_clip: 1.0
+log_interval: 25
+eval_interval: 250
+eval_batches: 10
+ckpt_interval: 100000
+compile: true
+tensorboard: false
+sample_prompts: []
+out_dir: runs/ablation_general_only
+mix:
+- - 1.0
+  - {fineweb_edu: 1.0}

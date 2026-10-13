@@ -557,8 +557,8 @@ Every difference is significant. With our model, constrained decoding almost nev
 
 Findings:
 1. **The gap to the baselines is about reading the table, not about SQL.** Ours loses most on condition columns (+2.4 points vs SmolLM2-360M), values (+2.0) and invalid SQL (+1.7, nearly all unknown column names). These are the skills more pretraining text builds.
-2. **Aggregation errors are flat across models** (3.7 / 3.8 / 3.9% even though overall accuracy spans 9 points). A model nearly three times larger with 900x the data does no better. This is consistent with the known noise in WikiSQL's aggregation labels (e.g. COUNT vs no aggregation for the same phrasing) and suggests a ceiling around 96% on this axis.
+2. **Aggregation errors are flat across models** (3.7 / 3.8 / 3.9% even though overall accuracy spans 9 points). A model nearly three times larger with 900x the data does no better. This is consistent with noise in WikiSQL's aggregation labels rather than a model weakness; a manual look at a sample of these cases is still to do.
 3. **The value constraint works as intended:** value-only errors drop from 366 to 215 for ours (and 309 to 170, 194 to 120 for the baselines); the other categories barely move.
-4. About 5.6% of answers are right by execution but structurally different from gold (e.g. a redundant condition), for every model. Execution accuracy and logical-form accuracy differ by roughly this amount.
+4. 5.3-5.6% of answers are right by execution but structurally different from gold, for every model. Execution accuracy and logical-form accuracy differ by roughly this amount.
 
 Figure `docs/figures/accuracy_vs_tokens.png` places each model by pretraining tokens (model cards: SmolLM2-135M 2T, SmolLM2-360M 4T; Pythia-160M 299.9B once scored; GPT-2 is left off because its token count was never published).

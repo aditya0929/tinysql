@@ -1,0 +1,9 @@
+{
+ "n": 8421,
+ "exec_acc": 0.8721054506590666,
+ "validity": 0.993112456952856,
+ "exact_match": 0.7881486759292246,
+ "model": "HuggingFaceTB/SmolLM2-360M",
+ "params": 361821120,
+ "seconds": 675.4
+}

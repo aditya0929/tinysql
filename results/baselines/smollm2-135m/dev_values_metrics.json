@@ -1,0 +1,9 @@
+{
+ "n": 8421,
+ "exec_acc": 0.8519178244864031,
+ "validity": 1.0,
+ "exact_match": 0.7661797886236789,
+ "decode": "values",
+ "model_dir": "runs/baseline_smollm2-135m/best",
+ "seconds": 1743.1
+}

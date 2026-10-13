@@ -22,7 +22,7 @@ Last updated: 2026-10-08.
 | J. Benchmarking and failure analysis | **dev benchmark done** against fine-tuned SmolLM2-135M/360M, greedy and constrained (section 15); test set, seeds, CIs, official evaluator, failure analysis not started |
 | K. Demo, model card, README | not started |
 
-Tests: **137 passing** (`python -m pytest tests`).
+Tests: **135 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -335,7 +335,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 137 tests
+python -m pytest tests                          # 135 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean

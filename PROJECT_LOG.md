@@ -22,7 +22,7 @@ Last updated: 2026-10-08.
 | J. Benchmarking and failure analysis | **dev benchmark done** against fine-tuned SmolLM2-135M/360M, greedy and constrained (section 15); test set, seeds, CIs, official evaluator, failure analysis not started |
 | K. Demo, model card, README | not started |
 
-Tests: **135 passing** (`python -m pytest tests`).
+Tests: **144 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -335,7 +335,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 135 tests
+python -m pytest tests                          # 144 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean
@@ -480,15 +480,15 @@ SmolLM2-135M and SmolLM2-360M fine-tuned with **our exact recipe**: identical pr
 | Model | Pretraining tokens | Params | Greedy | + Schema | + Schema + values |
 |---|---|---|---|---|---|
 | **TinySQL-125M (ours, from scratch)** | **4.5B** | 125M | **78.46%** | **79.68%** | **81.46%** |
-| SmolLM2-135M (same fine-tune) | ~2T | 135M | 82.59% | 83.46% | 85.19% |
-| SmolLM2-360M (same fine-tune) | ~4T | 362M | 87.21% | 87.55% | 88.46% |
+| SmolLM2-135M (same fine-tune) | ~2T | 135M | 82.72% | 83.46% | 85.19% |
+| SmolLM2-360M (same fine-tune) | ~4T | 362M | 87.27% | 87.55% | 88.46% |
 
-Execution accuracy. Validity under both constraint levels is 100% for every model (greedy: 97.73% / 98.80% / 99.31%). Exact match, ours: 70.64% / 71.42% / 73.03%; SmolLM2-135M: 74.79% / 75.05% / 76.62%; SmolLM2-360M: 78.81% / 78.89% / 79.68%.
+Execution accuracy. Validity under both constraint levels is 100% for every model (greedy: 97.73% / 98.91% / 99.39%). The baselines' greedy runs were first scored before the executor's apostrophe fix (82.59% / 87.21%) and re-scored afterwards. Exact match, ours: 70.64% / 71.42% / 73.03%; SmolLM2-135M: 74.79% / 75.05% / 76.62%; SmolLM2-360M: 78.81% / 78.89% / 79.68%.
 
 Per-epoch check (first 1,000 dev questions), best epoch in bold: ours 68.3 / 70.8 / **73.4**; SmolLM2-135M 76.3 / **78.3** / 77.1; SmolLM2-360M 81.6 / 83.5 / **84.5**.
 
 Observations:
-1. **Pretraining scale at equal size:** about 450x more pretraining data gives SmolLM2-135M +4.1 points greedy and +3.7 with full constraints over our model. Ours reaches about 95% of its constrained accuracy (81.46 vs 85.19) from about 0.2% of its pretraining data.
+1. **Pretraining scale at equal size:** about 450x more pretraining data gives SmolLM2-135M +4.3 points greedy and +3.7 with full constraints over our model. Ours reaches about 95% of its constrained accuracy (81.46 vs 85.19) from about 0.2% of its pretraining data.
 2. **Constraints help weaker models more:** schema + values adds +3.0 (ours), +2.6 (SmolLM2-135M), +1.25 (SmolLM2-360M). Stronger models hallucinate fewer columns and values, leaving less to fix.
 3. **The value constraint is worth more than the schema constraint** for every model: copying filter values exactly is where small models slip most.
 4. **Model size:** SmolLM2 135M to 360M is +4.6 points greedy.
@@ -497,4 +497,22 @@ Reproducibility: the constrained numbers for our model were produced twice (the 
 
 ### 15.4 Not yet done for a publication-grade benchmark
 
-Test-set scores (once, for every system); the official WikiSQL `evaluate.py` (logical-form and execution accuracy, after converting our SQL back to the structured format); 3 fine-tuning seeds per system with mean and standard deviation; bootstrap confidence intervals and paired significance tests; a per-model learning-rate sweep; more same-size baselines (GPT-2 124M, Pythia-160M); a no-pretraining control; the proxy ablations; Spider as a second benchmark; a large-model few-shot reference; a full failure analysis.
+Test-set scores (once, for every system); 3 fine-tuning seeds per system with mean and standard deviation; bootstrap confidence intervals and paired significance tests; a per-model learning-rate sweep; more same-size baselines (GPT-2 124M, Pythia-160M); a no-pretraining control; the proxy ablations; Spider as a second benchmark; a large-model few-shot reference; a full failure analysis.
+
+### 15.5 Official WikiSQL evaluator
+
+`third_party/wikisql/` holds Salesforce's official `evaluate.py` and `lib/` **unmodified** (BSD 3-Clause, fetched 2026-10-13). `eval/wikisql_official.py` parses our generated SQL back into WikiSQL's structured form (`sel`, `agg`, `conds`; unparseable output is passed as an error) and runs it. Two environment settings reproduce the original evaluation setup without touching its code: Python UTF-8 mode (Windows otherwise reads the data as cp1252) and an English number locale for its `babel` decimal parsing. Validation: all 8,421 gold dev queries round-trip exactly through the parser, and gold scored as predictions gives exactly 100% logical-form and 100% execution accuracy.
+
+| Model | Decoding | Our executor | **Official execution** | **Official logical form** |
+|---|---|---|---|---|
+| TinySQL-125M (ours) | greedy | 78.46% | **78.49%** | **72.87%** |
+| | schema | 79.68% | **79.72%** | **73.96%** |
+| | schema + values | 81.46% | **81.49%** | **75.70%** |
+| SmolLM2-135M | greedy | 82.72% | **82.67%** | **77.44%** |
+| | schema | 83.46% | **83.41%** | **78.01%** |
+| | schema + values | 85.19% | **85.13%** | **79.66%** |
+| SmolLM2-360M | greedy | 87.27% | **87.29%** | **81.77%** |
+| | schema | 87.55% | **87.59%** | **81.99%** |
+| | schema + values | 88.46% | **88.50%** | **82.84%** |
+
+Our executor and the official one agree within 0.06 points on all nine systems. The official logical-form accuracy is higher than our exact match because it compares conditions as an unordered set with case-insensitive values. All numbers: `results/wikisql_dev_all.json`.

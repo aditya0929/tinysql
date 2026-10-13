@@ -1,0 +1,80 @@
+{
+ "TinySQL-125M (ours)": {
+  "greedy": {
+   "exec_acc": 0.7845861536634604,
+   "validity": 0.9773186082413015,
+   "exact_match": 0.7064481653010332,
+   "official_ex_accuracy": 0.7849424058900368,
+   "official_lf_accuracy": 0.728654554090963,
+   "parsed": 0.9773186082413015
+  },
+  "schema": {
+   "exec_acc": 0.7968174801092507,
+   "validity": 1.0,
+   "exact_match": 0.7141669635435222,
+   "official_ex_accuracy": 0.7971737323358271,
+   "official_lf_accuracy": 0.7395796223726399,
+   "parsed": 1.0
+  },
+  "values": {
+   "exec_acc": 0.8146300914380715,
+   "validity": 1.0,
+   "exact_match": 0.730317064481653,
+   "official_ex_accuracy": 0.8148675929224558,
+   "official_lf_accuracy": 0.7570359814748843,
+   "parsed": 1.0
+  }
+ },
+ "SmolLM2-135M": {
+  "greedy": {
+   "exec_acc": 0.8272176701104382,
+   "validity": 0.9890749317183233,
+   "exact_match": 0.7478921743260896,
+   "official_ex_accuracy": 0.8267426671416697,
+   "official_lf_accuracy": 0.7743735898349364,
+   "parsed": 0.9889561809761311
+  },
+  "schema": {
+   "exec_acc": 0.8345802161263508,
+   "validity": 1.0,
+   "exact_match": 0.7505046906543166,
+   "official_ex_accuracy": 0.8341052131575822,
+   "official_lf_accuracy": 0.7800736254601591,
+   "parsed": 1.0
+  },
+  "values": {
+   "exec_acc": 0.8519178244864031,
+   "validity": 1.0,
+   "exact_match": 0.7661797886236789,
+   "official_ex_accuracy": 0.8513240707754424,
+   "official_lf_accuracy": 0.7965799786248664,
+   "parsed": 1.0
+  }
+ },
+ "SmolLM2-360M": {
+  "greedy": {
+   "exec_acc": 0.8726992043700273,
+   "validity": 0.9939437121482009,
+   "exact_match": 0.7881486759292246,
+   "official_ex_accuracy": 0.8729367058544116,
+   "official_lf_accuracy": 0.8177176107350671,
+   "parsed": 0.9939437121482009
+  },
+  "schema": {
+   "exec_acc": 0.8755492221826386,
+   "validity": 1.0,
+   "exact_match": 0.7888611803823774,
+   "official_ex_accuracy": 0.8759054744092151,
+   "official_lf_accuracy": 0.8198551240945255,
+   "parsed": 1.0
+  },
+  "values": {
+   "exec_acc": 0.8845742785892412,
+   "validity": 1.0,
+   "exact_match": 0.7968174801092507,
+   "official_ex_accuracy": 0.8850492815580098,
+   "official_lf_accuracy": 0.8284051775323595,
+   "parsed": 1.0
+  }
+ }
+}

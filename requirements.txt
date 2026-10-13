@@ -12,3 +12,5 @@ transformers
 safetensors
 tensorboard
 gradio
+records
+babel

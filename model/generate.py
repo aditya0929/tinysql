@@ -18,7 +18,10 @@ def filter_logits(logits: torch.Tensor, top_k: int | None = None, top_p: float |
     if top_p is not None:
         probs = softmax(sorted_logits.float(), dim=-1)
         mass_before = probs.cumsum(dim=-1) - probs          # probability mass of all higher-ranked tokens
-        remove |= mass_before > top_p                       # the top token has mass_before = 0, so it always stays
+        # nucleus = the smallest top set whose mass reaches top_p: drop a token once the mass before it already does
+        nucleus_done = mass_before >= top_p
+        nucleus_done[:, 0] = False                          # the top token always stays (even for top_p = 0)
+        remove |= nucleus_done
     sorted_logits = sorted_logits.masked_fill(remove, float("-inf"))
     return torch.full_like(logits, float("-inf")).scatter(-1, sorted_idx, sorted_logits)   # undo the sort
 

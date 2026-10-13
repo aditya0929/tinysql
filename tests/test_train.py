@@ -66,7 +66,7 @@ def test_non_finite_gradients_skip_the_step(shards, tmp_path, monkeypatch):
     monkeypatch.setattr(pretrain, "clip_grad_norm_", fake)
     torch.manual_seed(0)
     initial = {k: v.clone() for k, v in TinySQL(ModelConfig(**MODEL)).state_dict().items()}
-    model, _ = pretrain.train(cfg_for(shards, tmp_path, max_steps=1, log_interval=1, warmup_steps=1))
+    model, _ = pretrain.train(cfg_for(shards, tmp_path, max_steps=1, log_interval=1, warmup_steps=1, device="cpu"))
     assert all(torch.equal(initial[k], v) for k, v in model.state_dict().items())          # weights untouched
     assert read_metrics(tmp_path)[0]["skipped_steps"] == 1
 

@@ -33,11 +33,15 @@ def test_top_k_keeps_exactly_k():
 
 
 def test_top_p_nucleus():
+    # nucleus = the smallest set of top tokens whose probability reaches p; thresholds chosen away from exact ties
     probs = torch.tensor([[0.5, 0.3, 0.15, 0.05]])
     logits = probs.log()
-    assert (filter_logits(logits, top_p=0.7) > float("-inf")).sum() == 2    # 0.5 + 0.3 covers 0.7
-    assert (filter_logits(logits, top_p=0.8) > float("-inf")).sum() == 3    # the 0.15 token is still needed
-    assert (filter_logits(logits, top_p=0.0) > float("-inf")).sum() == 1    # top token always survives
+    kept = lambda p: int((filter_logits(logits, top_p=p) > float("-inf")).sum())
+    assert kept(0.45) == 1      # 0.5 alone reaches 0.45
+    assert kept(0.75) == 2      # 0.5 + 0.3 = 0.8 reaches 0.75
+    assert kept(0.85) == 3      # needs the 0.15 token too
+    assert kept(0.97) == 4
+    assert kept(0.0) == 1       # the top token always survives
 
 
 def test_sampler_matches_distribution():

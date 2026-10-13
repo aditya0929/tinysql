@@ -18,11 +18,11 @@ Last updated: 2026-10-08.
 | F. Ablations and scaling | not started |
 | G. Instruction tuning | not started |
 | H. Text-to-SQL fine-tuning | **done**: **78.4% execution accuracy on WikiSQL dev** (section 14) |
-| I. Decoding (beam, constrained) | generation done; beam and constrained not started |
-| J. Benchmarking and failure analysis | dev evaluation and first component breakdown done (section 14); baselines, test-set score and full failure analysis not started |
+| I. Decoding (beam, constrained) | **constrained decoding done** (section 15): 100% validity, +3.0 points; beam search not started |
+| J. Benchmarking and failure analysis | **dev benchmark done** against fine-tuned SmolLM2-135M/360M, greedy and constrained (section 15); test set, seeds, CIs, official evaluator, failure analysis not started |
 | K. Demo, model card, README | not started |
 
-Tests: **120 passing** (`python -m pytest tests`).
+Tests: **137 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -146,6 +146,10 @@ Each token produces a query, key, and value. Scores are `q . k / sqrt(d)`, maske
 | The new loss corrupted its own input when logits were already fp32 (`.float()` returns the same tensor, so in-place ops modified the saved input) | the unit tests, on CPU | always copy explicitly (`to(torch.float32, copy=True)`); the bf16 GPU path would have hidden it |
 | Fine-tune crashed on the VM: `sqlite3.Connection.setconfig` does not exist on Python 3.10 (the laptop has 3.12) | first fine-tune launch (cost: about a minute of VM time) | check quoted column names against the table before executing (works on any version); keep `setconfig` only where it exists |
 | On Python 3.10, `set_authorizer(None)` raises, so every query looked invalid (a fine-tune would have reported 0% accuracy) | the new pre-flight tests that run **on the VM** before training | lift the read-only guard with a permit-all callback; the launcher now refuses to train if the VM's own tests fail |
+| The executor mis-read column names containing an apostrophe ("Driver's Age"): regexes for one quote kind cannot see the other, so some gold queries failed for every decoding method (all scores slightly understated) | invalid constrained outputs that were in fact grammatical | a small left-to-right SQL lexer for identifiers and strings; all 80,654 gold queries execute; saved predictions re-scored |
+| The constrained grammar accepted the lead byte of a character that cannot occur in the question, so decoding could dead-end mid-value; it also skipped stray non-UTF-8 bytes | 9 to 32 constrained outputs that did not execute | accept a value only as valid UTF-8, and an unfinished character only if some character of the question can complete it; a clean full re-run reproduced every prediction |
+| Baseline fine-tunes ran out of GPU memory (the standard Hugging Face loss over a 49,152-token vocabulary) | the VM's own run | token-weighted micro-batches; a test proves the gradient equals the full-batch gradient (1e-6), so the recipe is unchanged |
+| The GCP image's torchaudio is built for a different torch; transformers imports it and crashes | the baselines pre-flight on the VM | uninstall torchaudio before running |
 
 ---
 
@@ -331,7 +335,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 120 tests
+python -m pytest tests                          # 137 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean
@@ -453,3 +457,44 @@ Before fine-tuning the estimate was a central range of 60% to 72% (point estimat
 Artifacts: fine-tuned weights `gs://tinysql-data-474078649724/checkpoints/finetune/best.pt` (477 MB), predictions and metrics under `results/finetune/` in the bucket; `results/wikisql_dev_metrics.json` in the repository.
 
 **Next:** schema-constrained decoding (target: the 2.35% invalid queries), the SmolLM2 baselines with the identical fine-tune, the full failure analysis, the test-set score, and the ablations on the 25M proxy.
+
+---
+
+## 15. Constrained decoding and baselines (WikiSQL dev)
+
+### 15.1 Schema-constrained decoding (`decode/sql_grammar.py`, `decode/constrained.py`)
+
+Chosen from the data: of the 198 invalid greedy outputs, 189 (95%) used a column name that does not exist and 9 were broken quoting or syntax; and 100% of gold condition values (11,545 of 11,545) occur verbatim, case-insensitively, in the question (WikiSQL was built that way). So there are two levels:
+
+- **schema:** a byte-level SQL grammar (`SELECT [AGG(]"col"[)] FROM t [WHERE "col" op 'value' [AND ...]];`) that admits only the table's real column names;
+- **schema + values:** additionally, every condition value must be a substring of the question (Unicode-aware, case-insensitive), as valid UTF-8; an unfinished multi-byte character is allowed only if some character of the question can complete it.
+
+At each step the model's tokens are tried best-first and the first one that keeps the output a valid prefix is taken (equivalent to masking every invalid token and taking the argmax). Tested: all 8,421 gold dev queries are accepted (and their prefixes), invalid queries are rejected, and even a random model is forced into complete, valid SQL. The same decoder runs on the Hugging Face baselines through two adapters (token id to raw bytes; HF KV cache), both tested.
+
+### 15.2 Baselines (`eval/baselines/finetune_hf.py`)
+
+SmolLM2-135M and SmolLM2-360M fine-tuned with **our exact recipe**: identical prompts and masking, batch 32, my AdamW, peak LR 1e-4 with warmup and cosine decay, 3 epochs, best epoch by execution accuracy on the first 1,000 dev questions, scored by the same executor. Run unattended on the L4 with pre-flight tests on the VM.
+
+### 15.3 Results (WikiSQL dev, 8,421 questions)
+
+| Model | Pretraining tokens | Params | Greedy | + Schema | + Schema + values |
+|---|---|---|---|---|---|
+| **TinySQL-125M (ours, from scratch)** | **4.5B** | 125M | **78.46%** | **79.68%** | **81.46%** |
+| SmolLM2-135M (same fine-tune) | ~2T | 135M | 82.59% | 83.46% | 85.19% |
+| SmolLM2-360M (same fine-tune) | ~4T | 362M | 87.21% | 87.55% | 88.46% |
+
+Execution accuracy. Validity under both constraint levels is 100% for every model (greedy: 97.73% / 98.80% / 99.31%). Exact match, ours: 70.64% / 71.42% / 73.03%; SmolLM2-135M: 74.79% / 75.05% / 76.62%; SmolLM2-360M: 78.81% / 78.89% / 79.68%.
+
+Per-epoch check (first 1,000 dev questions), best epoch in bold: ours 68.3 / 70.8 / **73.4**; SmolLM2-135M 76.3 / **78.3** / 77.1; SmolLM2-360M 81.6 / 83.5 / **84.5**.
+
+Observations:
+1. **Pretraining scale at equal size:** about 450x more pretraining data gives SmolLM2-135M +4.1 points greedy and +3.7 with full constraints over our model. Ours reaches about 95% of its constrained accuracy (81.46 vs 85.19) from about 0.2% of its pretraining data.
+2. **Constraints help weaker models more:** schema + values adds +3.0 (ours), +2.6 (SmolLM2-135M), +1.25 (SmolLM2-360M). Stronger models hallucinate fewer columns and values, leaving less to fix.
+3. **The value constraint is worth more than the schema constraint** for every model: copying filter values exactly is where small models slip most.
+4. **Model size:** SmolLM2 135M to 360M is +4.6 points greedy.
+
+Reproducibility: the constrained numbers for our model were produced twice (the second time as a clean full run with the final code); all 8,421 predictions were identical in both modes. Metrics are in `results/wikisql_dev_metrics.json` and `results/baselines/`.
+
+### 15.4 Not yet done for a publication-grade benchmark
+
+Test-set scores (once, for every system); the official WikiSQL `evaluate.py` (logical-form and execution accuracy, after converting our SQL back to the structured format); 3 fine-tuning seeds per system with mean and standard deviation; bootstrap confidence intervals and paired significance tests; a per-model learning-rate sweep; more same-size baselines (GPT-2 124M, Pythia-160M); a no-pretraining control; the proxy ablations; Spider as a second benchmark; a large-model few-shot reference; a full failure analysis.

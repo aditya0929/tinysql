@@ -335,7 +335,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 147 tests
+python -m pytest tests                          # 165 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean
@@ -497,7 +497,7 @@ Reproducibility: the constrained numbers for our model were produced twice (the 
 
 ### 15.4 Not yet done for a publication-grade benchmark
 
-Test-set scores (once, for every system); 3 fine-tuning seeds per system with mean and standard deviation; bootstrap confidence intervals and paired significance tests; a per-model learning-rate sweep; more same-size baselines (GPT-2 124M, Pythia-160M); a no-pretraining control; the proxy ablations; Spider as a second benchmark; a large-model few-shot reference; a full failure analysis.
+Test-set scores (once, for every system); Spider as a second benchmark; a large-model few-shot reference. Running on the GPU now (`scripts/benchmark_queue.py`): 3 fine-tuning seeds per system with mean and standard deviation, a per-model learning-rate sweep, more same-size baselines (GPT-2 124M, Pythia-160M), a no-pretraining control, the proxy ablations. Done: confidence intervals, significance tests and failure analysis (15.6).
 
 ### 15.5 Official WikiSQL evaluator
 
@@ -516,3 +516,49 @@ Test-set scores (once, for every system); 3 fine-tuning seeds per system with me
 | | schema + values | 88.46% | **88.50%** | **82.84%** |
 
 Our executor and the official one agree within 0.06 points on all nine systems. The official logical-form accuracy is higher than our exact match because it compares conditions as an unordered set with case-insensitive values. All numbers: `results/wikisql_dev_all.json`.
+
+### 15.6 Confidence intervals, significance and failure analysis (`eval/stats.py`, `eval/failure_analysis.py`, 18 tests)
+
+`scripts/analyse_dev.py` re-scores all nine prediction files with the current executor, then computes the statistics; `scripts/plot_results.py` draws the figures. Both are written from scratch (no scipy/statsmodels): percentile bootstrap (10,000 resamples of the 8,421 questions), paired bootstrap of the difference, and the exact McNemar test on the questions where exactly one system is right (binomial tail computed in log space so it stays exact at thousands of discordant pairs).
+
+| System (dev, execution accuracy, 95% CI) | Greedy | + Schema | + Schema + values |
+|---|---|---|---|
+| TinySQL-125M (ours) | 78.46 [77.56, 79.34] | 79.68 [78.81, 80.54] | 81.46 [80.62, 82.31] |
+| SmolLM2-135M | 82.72 [81.91, 83.53] | 83.46 [82.67, 84.25] | 85.19 [84.44, 85.95] |
+| SmolLM2-360M | 87.27 [86.55, 87.97] | 87.55 [86.84, 88.24] | 88.46 [87.76, 89.12] |
+
+Paired tests (questions only the first system gets right / only the second, exact McNemar p):
+
+| Comparison | Difference | Discordant | p |
+|---|---|---|---|
+| SmolLM2-135M vs ours, greedy | +4.26 | 779 / 420 | 2e-25 |
+| SmolLM2-135M vs ours, schema + values | +3.73 | 646 / 332 | 6e-24 |
+| SmolLM2-360M vs ours, greedy | +8.81 | 992 / 250 | 7e-105 |
+| ours: schema + values vs greedy | +3.00 | 254 / **1** | 9e-75 |
+| ours: schema vs greedy | +1.22 | 103 / **0** | 2e-31 |
+| SmolLM2-135M: schema + values vs greedy | +2.47 | 234 / 26 | 5e-43 |
+| SmolLM2-360M: schema + values vs greedy | +1.19 | 111 / 11 | 6e-22 |
+
+Every difference is significant. With our model, constrained decoding almost never breaks a question greedy got right (0 and 1 cases); with the SmolLM2 models it occasionally does (12 to 26 cases). One plausible cause, not yet checked: their tokenizers were not built around our grammar, so a constrained path can be forced into a different token split.
+
+**Failure categories** (greedy; each wrong answer is parsed into WikiSQL's structure and gets exactly one category; `results/failures_dev.json`, figure `docs/figures/failure_categories.png`):
+
+| Category (% of all dev questions) | Ours | SmolLM2-135M | SmolLM2-360M |
+|---|---|---|---|
+| invalid SQL | 2.27 | 1.09 | 0.61 |
+| select column | 1.56 | 1.13 | 0.90 |
+| aggregation | 3.66 | 3.80 | 3.86 |
+| condition column | 4.38 | 3.23 | 2.00 |
+| operator | 0.31 | 0.31 | 0.44 |
+| value | 4.35 | 3.67 | 2.30 |
+| missing / extra condition | 0.57 | 0.52 | 0.32 |
+| several of the above | 4.13 | 3.38 | 2.19 |
+| structure right, result differs | 0.32 | 0.14 | 0.12 |
+
+Findings:
+1. **The gap to the baselines is about reading the table, not about SQL.** Ours loses most on condition columns (+2.4 points vs SmolLM2-360M), values (+2.0) and invalid SQL (+1.7, nearly all unknown column names). These are the skills more pretraining text builds.
+2. **Aggregation errors are flat across models** (3.7 / 3.8 / 3.9% even though overall accuracy spans 9 points). A model nearly three times larger with 900x the data does no better. This is consistent with the known noise in WikiSQL's aggregation labels (e.g. COUNT vs no aggregation for the same phrasing) and suggests a ceiling around 96% on this axis.
+3. **The value constraint works as intended:** value-only errors drop from 366 to 215 for ours (and 309 to 170, 194 to 120 for the baselines); the other categories barely move.
+4. About 5.6% of answers are right by execution but structurally different from gold (e.g. a redundant condition), for every model. Execution accuracy and logical-form accuracy differ by roughly this amount.
+
+Figure `docs/figures/accuracy_vs_tokens.png` places each model by pretraining tokens (model cards: SmolLM2-135M 2T, SmolLM2-360M 4T; Pythia-160M 299.9B once scored; GPT-2 is left off because its token count was never published).

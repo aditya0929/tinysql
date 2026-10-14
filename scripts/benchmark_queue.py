@@ -76,7 +76,8 @@ class Queue:
             while len([p for p in self.background if p[1].poll() is None]) >= MAX_BACKGROUND:
                 time.sleep(20)
             self.reap()
-            shell = f"{' '.join(cmd)} >> {LOG} 2>&1 && {background_then}"
+            # exit with the EVALUATION's status (not the clean-up's), and keep the weights if it failed
+            shell = f"{' '.join(cmd)} >> {LOG} 2>&1; rc=$?; if [ $rc -eq 0 ]; then {background_then}; fi; exit $rc"
             self.background.append((key, subprocess.Popen(["bash", "-c", shell])))
             return True
         t0 = time.time()
@@ -84,6 +85,7 @@ class Queue:
             rc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT).returncode
         if rc == 0:
             self.state["done"][key] = round(time.time() - t0)
+            self.state["failed"].pop(key, None)
             self.log(f"DONE  {key} in {time.time() - t0:.0f}s")
         else:
             self.state["failed"][key] = rc
@@ -98,6 +100,7 @@ class Queue:
             if p.poll() is not None:
                 if p.returncode == 0:
                     self.state["done"][key] = "background"
+                    self.state["failed"].pop(key, None)
                 else:
                     self.state["failed"][key] = p.returncode
                 self.log(f"{'DONE ' if p.returncode == 0 else 'FAIL '} {key} (background)")
@@ -145,6 +148,8 @@ class Queue:
         else:
             cmd = [sys.executable, "-m", "eval.baselines.finetune_hf", "--model", MODELS[model], "--out", out,
                    "--peak_lr", str(lr), "--seed", str(seed)]
+        if not self.done(f"ft:{job}"):
+            self.reap(wait=True)        # background evaluations hold 2-3 GB each: a fine-tune next to them ran out of memory
         ok = self.step(f"ft:{job}", cmd)
         self.upload(job)
         return ok
@@ -186,7 +191,11 @@ class Queue:
             shutil.rmtree(w, ignore_errors=True) if os.path.isdir(w) else (os.path.exists(w) and os.remove(w))
 
     # ------------------------------------------------------------------ phases
-    def run(self):
+    def run(self, redo=()):
+        """redo: step keys to run again even though they are recorded as done. Failed steps are always retried."""
+        for key in redo:
+            self.state["done"].pop(key, None)
+        self.state.pop("finished", None)
         self.preload()
         self.log("=== phase 1: learning-rate sweep")
         for model in MODELS:
@@ -247,8 +256,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--bucket", required=True)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--redo", default="", help="comma-separated step keys to run again")
     a = ap.parse_args()
-    Queue(a.bucket, a.dry_run).run()
+    Queue(a.bucket, a.dry_run).run(redo=[k for k in a.redo.split(",") if k])
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ def _choose(logits_row, text: bytes, grammar: SqlGrammar, tok, stop_id: int, top
         return stop_id
     top = torch.topk(logits_row, topk).indices.tolist()
     for t in itertools.chain(top, torch.argsort(logits_row, descending=True).tolist()):
-        if t in tok.id_to_special:
+        if t in tok.id_to_special or t not in tok.vocab:       # specials, and output rows with no token (padded vocab)
             continue
         if grammar.check(text + tok.vocab[t]) != "invalid":
             return t

@@ -95,3 +95,12 @@ def test_unfinished_character_must_lead_somewhere_in_the_question():
     assert SqlGrammar(COLS, "who played for haugar").check(head + "é".encode()[:1]) == "invalid"   # no é after 'h' in question: dead end
     assert SqlGrammar(COLS, "who played for hé fc").check(head + "é".encode()[:1]) == "prefix"     # 'hé' is in the question
     assert SqlGrammar(COLS, "who played for hÉ fc").check(head + "é".encode()) == "prefix"         # case-insensitive
+
+
+def test_output_rows_without_a_token_are_skipped():
+    """HF models (e.g. Pythia) pad the output layer past the tokenizer: those ids must never be chosen."""
+    from types import SimpleNamespace
+    from decode.constrained import _choose
+    tok = SimpleNamespace(vocab={0: b"SELECT", 1: b" x"}, id_to_special={2: "</sql>"})
+    logits = torch.tensor([0.0, 1.0, 2.0, 9.0, 8.0])                   # ids 3 and 4 have no token and score highest
+    assert _choose(logits, b"", SqlGrammar(["Player"]), tok, stop_id=2, topk=2) == 0

@@ -8,26 +8,34 @@
 `correct`, `a`, `b` are sequences of 0/1 (or bools), one entry per question, aligned across systems.
 """
 import math
-import random
+
+import numpy as np
 
 
 def _mean(xs):
     return sum(xs) / len(xs)
 
 
+def _resampled_means(x, n_boot, seed, chunk=500):
+    """Means of n_boot resamples (with replacement) of x, sorted. Vectorised in chunks to bound memory."""
+    x = np.asarray(x, dtype=np.float64)
+    rng = np.random.default_rng(seed)
+    out = np.concatenate([x[rng.integers(0, len(x), size=(min(chunk, n_boot - i), len(x)))].mean(axis=1)
+                          for i in range(0, n_boot, chunk)])
+    return np.sort(out).tolist()
+
+
 def bootstrap_ci(correct, n_boot: int = 10_000, alpha: float = 0.05, seed: int = 0):
-    """-> (accuracy, low, high)."""
-    x = [int(c) for c in correct]
-    n, rng = len(x), random.Random(seed)
-    stats = sorted(sum(x[rng.randrange(n)] for _ in range(n)) / n for _ in range(n_boot))
+    """-> (accuracy, low, high). `correct` may also hold per-question fractions (e.g. averaged over seeds)."""
+    x = [float(c) for c in correct]
+    stats = _resampled_means(x, n_boot, seed)
     return _mean(x), stats[int(alpha / 2 * n_boot)], stats[int((1 - alpha / 2) * n_boot) - 1]
 
 
 def paired_bootstrap(a, b, n_boot: int = 10_000, alpha: float = 0.05, seed: int = 0):
     """-> (difference a - b, low, high, two-sided p-value). Resamples questions, keeping each question's pair together."""
     d = [int(x) - int(y) for x, y in zip(a, b)]
-    n, rng = len(d), random.Random(seed)
-    diffs = sorted(sum(d[rng.randrange(n)] for _ in range(n)) / n for _ in range(n_boot))
+    diffs = _resampled_means(d, n_boot, seed)
     obs = _mean(d)
     # p-value: how often the resampled difference lands on the other side of zero (shifted-null form)
     centered = [x - obs for x in diffs]

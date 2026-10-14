@@ -1,11 +1,12 @@
-"""Result figures from results/stats_dev.json and results/failures_dev.json (run scripts/analyse_dev.py first).
+"""Result figures from results/benchmark_dev.json and results/failures_dev.json (run scripts/analyse_dev.py first).
 
-  docs/figures/accuracy_vs_tokens.png   dev execution accuracy (greedy, 95% CI) against pretraining tokens, log scale
-  docs/figures/failure_categories.png   what goes wrong in each model's wrong answers (greedy)
+  docs/figures/accuracy_vs_tokens.png   dev execution accuracy (greedy, mean over seeds, 95% CI) against pretraining tokens
+  docs/figures/failure_categories.png   what goes wrong in each model's wrong answers (greedy, seed 0)
+  docs/figures/ablations.png            the 25M-proxy ablations (greedy, 95% CI)
 
 Pretraining token counts are from the model cards: SmolLM2-135M 2T, SmolLM2-360M 4T (huggingface.co/HuggingFaceTB),
-Pythia-160M 299.9B (github.com/EleutherAI/pythia). GPT-2's token count was never published, so it is left off the
-token axis. Ours: 8,600 steps x 524,288 tokens.
+Pythia-160M 299.9B (github.com/EleutherAI/pythia). GPT-2's token count was never published, so it is drawn as a
+reference line rather than a point; so is the no-pretraining control (0 tokens). Ours: 8,600 steps x 524,288 tokens.
 
     python -m scripts.plot_results
 """
@@ -17,12 +18,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
-MODELS = [  # (name in stats_dev.json, label, parameters, pretraining tokens, colour)
-    ("TinySQL-125M (ours)", "TinySQL-125M (ours)", 125.1e6, 8600 * 524288, BLUE),
-    ("SmolLM2-135M", "SmolLM2-135M", 134.5e6, 2e12, ORANGE),
-    ("SmolLM2-360M", "SmolLM2-360M", 361.8e6, 4e12, AQUA),
-    ("Pythia-160M", "Pythia-160M", 162.3e6, 299.9e9, YELLOW),
+BLUE, ORANGE, AQUA, YELLOW, GREY = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#7a7a7a"
+MODELS = [  # (name in benchmark_dev.json, parameters, pretraining tokens or None, colour)
+    ("TinySQL-125M (ours)", 125.1e6, 8600 * 524288, BLUE),
+    ("SmolLM2-135M", 134.5e6, 2e12, ORANGE),
+    ("SmolLM2-360M", 361.8e6, 4e12, AQUA),
+    ("Pythia-160M", 162.3e6, 299.9e9, YELLOW),
+    ("GPT-2 124M", 124.4e6, None, GREY),
 ]
 OUT = Path("docs/figures")
 
@@ -33,19 +35,29 @@ def _style(ax):
     ax.grid(axis="both", alpha=0.25, linewidth=0.6)
 
 
-def accuracy_vs_tokens(stats):
-    fig, ax = plt.subplots(figsize=(6.4, 4.2), dpi=160)
-    for key, label, params, tokens, colour in MODELS:
-        ci = stats["accuracy_ci95"].get(f"{key} / greedy")
-        if ci is None:
-            continue                                                  # not evaluated yet
-        acc = 100 * ci["acc"]
-        ax.errorbar(tokens, acc, yerr=[[acc - 100 * ci["low"]], [100 * ci["high"] - acc]], fmt="o", ms=7,
+def accuracy_vs_tokens(res):
+    sysres = res["systems"]
+    fig, ax = plt.subplots(figsize=(6.8, 4.4), dpi=160)
+    for name, params, tokens, colour in MODELS:
+        g = sysres[name]["greedy"]
+        acc = 100 * g["mean"]
+        if tokens is None:
+            ax.axhline(acc, color=colour, lw=1, ls="--")
+            ax.text(1.5e10, acc + 0.8, f"{name}: {acc:.1f}% (tokens unpublished)", fontsize=7.5, color=colour)
+            continue
+        ax.errorbar(tokens, acc, yerr=[[acc - 100 * g["ci_low"]], [100 * g["ci_high"] - acc]], fmt="o", ms=7,
                     color=colour, capsize=3)
-        ax.annotate(f"{label}\n{params / 1e6:.0f}M params, {acc:.1f}%", (tokens, acc), textcoords="offset points",
-                    xytext=(9, -4), fontsize=8, color=colour, va="center")
+        seeds = len(g["seeds"])
+        above = name == "SmolLM2-135M"                                 # keeps its label clear of the GPT-2 line
+        ax.annotate(f"{name}\n{acc:.1f}%" + (f" (mean of {seeds} seeds)" if seeds > 1 else ""), (tokens, acc),
+                    textcoords="offset points", xytext=(-9, 14) if above else (9, -12), fontsize=7.5, color=colour,
+                    va="center", ha="right" if above else "left")
+    ctrl = 100 * sysres["No pretraining (ours, random init)"]["greedy"]["mean"]
+    ax.axhline(ctrl, color="black", lw=1, ls=":")
+    ax.text(1.1e9, ctrl + 0.8, f"same model, no pretraining: {ctrl:.1f}%", fontsize=7.5)
     ax.set_xscale("log")
-    ax.set_xlim(1e9, 3e13)
+    ax.set_xlim(1e9, 6e13)
+    ax.set_ylim(30, 92)
     ax.set_xlabel("pretraining tokens (log scale)")
     ax.set_ylabel("WikiSQL dev execution accuracy (%)")
     ax.set_title("Accuracy against pretraining data (greedy decoding, 95% CI)", fontsize=10)
@@ -57,29 +69,53 @@ def accuracy_vs_tokens(stats):
 def failure_categories(failures):
     cats = ["invalid", "select column", "aggregation", "condition column", "operator", "value",
             "missing condition", "extra condition", "multiple", "other"]
-    present = [m for m in MODELS if f"{m[0]} / greedy" in failures]
-    fig, ax = plt.subplots(figsize=(7.2, 4.6), dpi=160)
-    h = 0.8 / len(present)
-    for i, (key, label, _, _, colour) in enumerate(present):
-        f = failures[f"{key} / greedy"]
-        ys = [j + (i - (len(present) - 1) / 2) * h for j in range(len(cats))]
+    fig, ax = plt.subplots(figsize=(7.4, 5.6), dpi=160)
+    h = 0.8 / len(MODELS)
+    for i, (name, _, _, colour) in enumerate(MODELS):
+        f = failures[name]
+        ys = [j + (i - (len(MODELS) - 1) / 2) * h for j in range(len(cats))]
         ax.barh(ys, [100 * f["categories"][c] / f["n"] for c in cats], height=h, color=colour,
-                label=f"{label} ({100 * f['wrong'] / f['n']:.1f}% wrong)")
+                label=f"{name} ({100 * f['wrong'] / f['n']:.1f}% wrong)")
     ax.set_yticks(range(len(cats)), cats)
     ax.invert_yaxis()
     ax.set_xlabel("share of all dev questions (%)")
-    ax.set_title("Where the wrong answers come from (greedy decoding)", fontsize=10)
-    ax.legend(frameon=False, fontsize=8, loc="lower right")
+    ax.set_title("Where the wrong answers come from (greedy decoding, seed 0)", fontsize=10)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper center", bbox_to_anchor=(0.4, -0.1), ncol=3)
     _style(ax)
     ax.grid(axis="y", visible=False)
     fig.tight_layout()
     fig.savefig(OUT / "failure_categories.png")
 
 
+def ablations(res):
+    labels = {"base": "base (RoPE, GQA, tied, mixed data)", "learned_pos": "learned positions instead of RoPE",
+              "mha": "full multi-head attention", "untied": "untied input/output embeddings",
+              "general_only": "web text only (no SQL/code)"}
+    rows = list(labels)
+    fig, ax = plt.subplots(figsize=(6.8, 3.0), dpi=160)
+    for j, k in enumerate(rows):
+        a = res["ablations"][k]
+        acc = 100 * a["acc"]
+        ax.barh(j, acc, color=BLUE if k == "base" else GREY, height=0.6)
+        ax.errorbar(acc, j, xerr=[[acc - 100 * a["ci_low"]], [100 * a["ci_high"] - acc]], color="black", capsize=3, lw=1)
+        ax.text(100 * a["ci_high"] + 0.6, j, f"{acc:.1f}%", va="center", fontsize=8)
+    ax.set_yticks(range(len(rows)), [labels[k] for k in rows], fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 65)
+    ax.set_xlabel("WikiSQL dev execution accuracy (%), 25M-parameter proxy, greedy")
+    ax.set_title("Ablations: one change at a time from the base design", fontsize=10)
+    _style(ax)
+    ax.grid(axis="y", visible=False)
+    fig.tight_layout()
+    fig.savefig(OUT / "ablations.png")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    accuracy_vs_tokens(json.loads(Path("results/stats_dev.json").read_text()))
+    res = json.loads(Path("results/benchmark_dev.json").read_text())
+    accuracy_vs_tokens(res)
     failure_categories(json.loads(Path("results/failures_dev.json").read_text()))
+    ablations(res)
 
 
 if __name__ == "__main__":

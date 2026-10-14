@@ -497,7 +497,7 @@ Reproducibility: the constrained numbers for our model were produced twice (the 
 
 ### 15.4 Not yet done for a publication-grade benchmark
 
-Test-set scores (once, for every system); Spider as a second benchmark; a large-model few-shot reference. Running on the GPU now (`scripts/benchmark_queue.py`): 3 fine-tuning seeds per system with mean and standard deviation, a per-model learning-rate sweep, more same-size baselines (GPT-2 124M, Pythia-160M), a no-pretraining control, the proxy ablations. Done: confidence intervals, significance tests and failure analysis (15.6).
+Test-set scores (once, for every system); Spider as a second benchmark; a large-model few-shot reference. Done since: seeds, learning-rate sweep, GPT-2 and Pythia baselines, no-pretraining control, proxy ablations (section 16); confidence intervals, significance tests, failure analysis (15.6, 16).
 
 ### 15.5 Official WikiSQL evaluator
 
@@ -519,7 +519,9 @@ Our executor and the official one agree within 0.06 points on all nine systems. 
 
 ### 15.6 Confidence intervals, significance and failure analysis (`eval/stats.py`, `eval/failure_analysis.py`, 18 tests)
 
-`scripts/analyse_dev.py` re-scores all nine prediction files with the current executor, then computes the statistics; `scripts/plot_results.py` draws the figures. Both are written from scratch (no scipy/statsmodels): percentile bootstrap (10,000 resamples of the 8,421 questions), paired bootstrap of the difference, and the exact McNemar test on the questions where exactly one system is right (binomial tail computed in log space so it stays exact at thousands of discordant pairs).
+*This section is the first analysis, of the three original LR-1e-4 seed-0 runs. Section 16 has the full benchmark (best LR per model, 3 seeds, more baselines); its scripts replaced the ones described here.*
+
+The statistics are written from scratch (no scipy/statsmodels): percentile bootstrap (10,000 resamples of the 8,421 questions), paired bootstrap of the difference, and the exact McNemar test on the questions where exactly one system is right (binomial tail computed in log space so it stays exact at thousands of discordant pairs).
 
 | System (dev, execution accuracy, 95% CI) | Greedy | + Schema | + Schema + values |
 |---|---|---|---|
@@ -562,3 +564,121 @@ Findings:
 4. 5.3-5.6% of answers are right by execution but structurally different from gold, for every model. Execution accuracy and logical-form accuracy differ by roughly this amount.
 
 Figure `docs/figures/accuracy_vs_tokens.png` places each model by pretraining tokens (model cards: SmolLM2-135M 2T, SmolLM2-360M 4T; Pythia-160M 299.9B once scored; GPT-2 is left off because its token count was never published).
+
+## 16. The full benchmark (WikiSQL dev, 8,421 questions)
+
+Run unattended on the L4 by `scripts/benchmark_queue.py`, from 2026-10-13 08:21 to 2026-10-14 10:35 UTC: about 22 GPU-hours, including a rerun of the failed steps. Every model gets the identical fine-tuning recipe (section 15.2). Analysis: `scripts/analyse_dev.py` writes `results/benchmark_dev.json` and `results/failures_dev.json`; `scripts/plot_results.py` draws the figures.
+
+### 16.1 Protocol
+
+1. **Learning-rate sweep**, every model, LR in {5e-5, 1e-4, 2e-4}, seed 0. The best LR is chosen on the first 1,000 dev questions (best epoch), never on the full set:
+
+   | Model | 5e-5 | 1e-4 | 2e-4 | chosen |
+   |---|---|---|---|---|
+   | TinySQL-125M (ours) | 74.3 | 73.4 | 68.8 | 5e-5 |
+   | SmolLM2-135M | 78.0 | 78.3 | 75.1 | 1e-4 |
+   | SmolLM2-360M | 84.6 | 84.5 | 80.5 | 5e-5 |
+   | GPT-2 124M | 72.4 | 75.2 | 74.5 | 1e-4 |
+   | Pythia-160M | 56.9 | 58.5 | 45.7 | 1e-4 |
+2. **Seeds:** the three main models get 3 seeds (0, 1, 2) at their chosen LR; GPT-2 and Pythia get 1.
+3. **No-pretraining control:** our exact architecture from random weights, with the same fine-tuning. LR in {1e-4, 1e-3}; subset scores 28.6 vs 11.5, so 1e-4.
+4. **Ablations:** the 25M proxy (section 12) pretrained for 1,150 steps (150M tokens) with one change at a time, then fine-tuned and scored greedily. One seed each.
+5. **Statistics:**
+   - Each system gets mean ± std over seeds, and a 95% bootstrap CI over questions of the seed-averaged accuracy.
+   - Pairwise comparisons use seed-0 predictions, paired over questions: a paired bootstrap of the difference and the exact McNemar test.
+   - A schema-only run is always compared with greedy from the same weights.
+
+### 16.2 Main results
+
+| Model | Pretraining tokens | Seeds | Greedy | + Schema | + Schema + values |
+|---|---|---|---|---|---|
+| **TinySQL-125M (ours, from scratch)** | **4.5B** | 3 | **78.63 ± 0.26** [77.8, 79.4] | 79.68* | **80.96 ± 0.21** [80.2, 81.7] |
+| GPT-2 124M | unpublished | 1 | 79.41 [78.5, 80.3] | 80.60 | 82.79 [82.0, 83.6] |
+| Pythia-160M | 300B | 1 | 65.94 [64.9, 66.9] | 68.38 | 72.15 [71.2, 73.1] |
+| SmolLM2-135M | 2T | 3 | 82.97 ± 0.22 [82.3, 83.7] | 83.46* | 85.45 ± 0.22 [84.8, 86.1] |
+| SmolLM2-360M | 4T | 3 | 87.40 ± 0.20 [86.7, 88.1] | 87.55* | 88.41 ± 0.10 [87.8, 89.0] |
+| Our architecture, **no pretraining** | 0 | 1 | 37.70 [36.7, 38.7] | – | 48.22 [47.2, 49.3] |
+
+Execution accuracy in %; brackets are 95% CIs. *Schema-only was run once, on the LR-1e-4 seed-0 weights (section 15.3).
+
+Head-to-head against ours (seed 0, paired over the same questions). "Discordant" counts the questions only the first system gets right, then the questions only ours gets right:
+
+| Comparison | Greedy difference [95% CI] | Discordant | p (McNemar) | Schema + values difference | p |
+|---|---|---|---|---|---|
+| SmolLM2-360M − ours | +8.57 [+7.8, +9.4] | 963 / 241 | 2e-102 | +7.26 | 7e-85 |
+| SmolLM2-135M − ours | +3.80 [+3.0, +4.6] | 747 / 427 | 7e-21 | +3.99 | 4e-27 |
+| GPT-2 − ours | **+0.49 [−0.4, +1.3]** | 659 / 618 | **0.26** | +1.59 | 4e-05 |
+| Pythia-160M − ours | −12.98 [−13.9, −12.0] | 393 / 1486 | 4e-149 | −9.05 | 8e-92 |
+| ours − no pretraining | +41.22 [+40.1, +42.3] | 3597 / 126 | < 1e-300 | | |
+
+Gains from constrained decoding, in points, always against greedy from the same weights:
+
+| Model | + Schema | + Schema + values | questions fixed / broken (schema + values) |
+|---|---|---|---|
+| Ours | +1.22 | +2.28 | 192 / **0** |
+| GPT-2 | +1.19 | +3.38 | 338 / 53 |
+| Pythia | +2.43 | +6.21 | 727 / 204 |
+| SmolLM2-135M | +0.74 | +2.47 | 234 / 26 |
+| SmolLM2-360M | +0.29 | +0.96 | 106 / 25 |
+| No pretraining | | +10.52 | 894 / 8 |
+
+### 16.3 What the results say
+
+1. **Pretraining accounts for most of the result.** The same network fine-tuned from random weights reaches 37.7%. Pretraining on 4.5B tokens adds 41 points, and constrained decoding cannot make up the difference: the untrained model reaches only 48.2% even with schema + values.
+2. **Statistically tied with GPT-2 at greedy.**
+   - GPT-2 is the same size, and its pretraining token count was never published.
+   - The 0.5-point greedy difference is not significant (p = 0.26; the 95% CI includes 0).
+   - With schema + values, GPT-2 is 1.6 points ahead (p < 0.001).
+   - For scale: our 4.5B tokens are 0.2% of SmolLM2-135M's 2T.
+3. **Far ahead of Pythia-160M,** despite Pythia's 300B tokens (about 67x ours): +13 points greedy.
+   - Pythia's errors are dominated by invented column names (6.4% of questions invalid, vs 1.5% for ours), wrong condition columns and wrong values.
+   - Its pretraining data (the Pile) is general, while ours deliberately mixes in SQL and code. The ablations below suggest the mix explains only part of the difference, so this is recorded rather than explained.
+4. **Pretraining scale matters at equal size:** SmolLM2-135M (2T tokens) is 3.8 to 4.3 points ahead. SmolLM2-360M (nearly 3x the size, 4T tokens) is 8.6 points ahead.
+5. **Constrained decoding never hurt our model:** with schema + values it fixed 192 seed-0 questions and broke none. For every other model it broke some (25 to 204). Constraints help weaker models more: Pythia +6.2, ours +2.3, SmolLM2-360M +1.0.
+6. **Seed variation is small** (std 0.1 to 0.26 points). It is much smaller than every gap between models, except GPT-2 vs ours.
+7. **The LR chosen on the subset did not carry over.** Ours at 5e-5 (78.63 ± 0.26) is no better on the full set than the original LR-1e-4 run (78.46). On 1,000 questions, an accuracy's 95% CI is about ±2.8 points, much wider than the gaps between LRs, so the subset cannot rank close LRs reliably.
+
+### 16.4 Ablations (25M proxy, 150M pretraining tokens, greedy, one seed)
+
+| Variant (one change from base) | Accuracy | vs base | p | Final val loss: web / Stack SQL |
+|---|---|---|---|---|
+| **Base** (RoPE, GQA 9/3, tied embeddings, mixed data) | **55.82** [54.8, 56.9] | | | 4.094 / 1.806 |
+| Learned absolute positions instead of RoPE | 47.35 | −8.48 | 7e-89 | 4.512 / 2.344 |
+| Untied input/output embeddings (+12.6M params) | 50.83 | −5.00 | 6e-32 | 4.103 / 1.936 |
+| Full multi-head attention (9 KV heads) | 55.08 | −0.75 | 0.055 | 4.061 / 1.805 |
+| Web text only (no SQL/code/Q&A) | 54.89 | −0.94 | 0.021 | **3.981** / 4.402 |
+
+- **RoPE matters most.** Without it, accuracy drops 8.5 points and the pretraining loss is also clearly worse.
+- **Tying the embeddings helps** at this scale: untied is 5.0 points worse despite 50% more parameters.
+- **Grouped-query attention costs nothing measurable** (−0.75, p = 0.055) while shrinking the KV cache 3x.
+- **The SQL-heavy data mix helps only a little after fine-tuning** (−0.9 without it, p = 0.02).
+  - This holds even though web-only pretraining has far higher loss on SQL (4.40 vs 1.81).
+  - Fine-tuning on 56k WikiSQL examples seems to recover most of the SQL knowledge, so the mix mainly gives a better starting point.
+  - One seed and 150M tokens: treat this as indicative.
+
+### 16.5 Failure categories (greedy, seed 0; % of all dev questions)
+
+| Category | Ours | GPT-2 | Pythia | SmolLM2-135M | SmolLM2-360M | No pretraining |
+|---|---|---|---|---|---|---|
+| invalid SQL | 1.50 | 1.56 | 6.41 | 1.09 | 0.61 | 20.37 |
+| select column | 1.47 | 1.15 | 1.70 | 1.13 | 0.86 | 1.77 |
+| aggregation | 3.54 | 4.57 | 4.07 | 3.80 | 3.82 | 1.92 |
+| condition column | 4.39 | 3.63 | 6.57 | 3.23 | 2.15 | 6.38 |
+| value | 4.00 | 4.60 | 6.39 | 3.67 | 2.00 | 17.78 |
+| several of the above | 4.74 | 3.88 | 7.59 | 3.38 | 2.21 | 13.23 |
+| other categories | 1.44 | 1.20 | 1.33 | 0.97 | 0.87 | 0.86 |
+| **total wrong** | **21.08** | 20.59 | 34.06 | 17.28 | 12.50 | 62.30 |
+
+- Compared with GPT-2, ours makes fewer aggregation and value errors, but more condition-column and multi-part errors.
+- Aggregation errors stay between 3.5 and 4.6% for every pretrained model (see 15.6).
+
+### 16.6 Bugs found by this run (all fixed, tested and rerun)
+
+| Problem | Cause | Fix |
+|---|---|---|
+| 4 fine-tunes ran out of GPU memory | background constrained evaluations (2-3 GB each) shared the GPU | the queue waits for background evaluations before starting a fine-tune |
+| Pythia constrained decoding crashed (`KeyError: 50279`) | Pythia's output layer has 50,304 rows, more than its tokenizer has tokens | skip output rows with no token; regression test added |
+| A failed background evaluation was recorded as done, and its weights were deleted | the shell chain's exit status came from the clean-up step, not the evaluation | record the evaluation's own status; keep weights on failure; `--redo` clears bad entries |
+| Pythia greedy moved from 64.48 to 65.94 after its re-fine-tune | GPU fine-tuning is not bit-reproducible, even with the same seed | report the rerun, so all three decodings come from the same weights |
+
+Figures: `docs/figures/accuracy_vs_tokens.png`, `docs/figures/failure_categories.png`, `docs/figures/ablations.png`.

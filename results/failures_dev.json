@@ -1,56 +1,22 @@
 {
- "TinySQL-125M (ours) / greedy": {
+ "TinySQL-125M (ours)": {
   "n": 8421,
-  "wrong": 1814,
+  "wrong": 1775,
   "categories": {
-   "invalid": 191,
-   "select column": 131,
-   "aggregation": 308,
-   "condition column": 369,
-   "operator": 26,
-   "value": 366,
-   "missing condition": 26,
-   "extra condition": 22,
-   "multiple": 348,
-   "other": 27
-  },
-  "right_but_structurally_different": 471
- },
- "TinySQL-125M (ours) / schema": {
-  "n": 8421,
-  "wrong": 1711,
-  "categories": {
-   "invalid": 0,
-   "select column": 139,
-   "aggregation": 313,
-   "condition column": 392,
-   "operator": 26,
-   "value": 374,
-   "missing condition": 26,
-   "extra condition": 23,
-   "multiple": 388,
-   "other": 30
-  },
-  "right_but_structurally_different": 482
- },
- "TinySQL-125M (ours) / values": {
-  "n": 8421,
-  "wrong": 1561,
-  "categories": {
-   "invalid": 0,
-   "select column": 141,
-   "aggregation": 325,
-   "condition column": 389,
-   "operator": 26,
-   "value": 215,
-   "missing condition": 27,
-   "extra condition": 27,
-   "multiple": 375,
+   "invalid": 126,
+   "select column": 124,
+   "aggregation": 298,
+   "condition column": 370,
+   "operator": 31,
+   "value": 337,
+   "missing condition": 25,
+   "extra condition": 29,
+   "multiple": 399,
    "other": 36
   },
-  "right_but_structurally_different": 485
+  "right_but_structurally_different": 496
  },
- "SmolLM2-135M / greedy": {
+ "SmolLM2-135M": {
   "n": 8421,
   "wrong": 1455,
   "categories": {
@@ -67,89 +33,72 @@
   },
   "right_but_structurally_different": 445
  },
- "SmolLM2-135M / schema": {
+ "SmolLM2-360M": {
   "n": 8421,
-  "wrong": 1393,
-  "categories": {
-   "invalid": 0,
-   "select column": 97,
-   "aggregation": 319,
-   "condition column": 288,
-   "operator": 27,
-   "value": 313,
-   "missing condition": 25,
-   "extra condition": 23,
-   "multiple": 287,
-   "other": 14
-  },
-  "right_but_structurally_different": 459
- },
- "SmolLM2-135M / values": {
-  "n": 8421,
-  "wrong": 1247,
-  "categories": {
-   "invalid": 0,
-   "select column": 99,
-   "aggregation": 326,
-   "condition column": 288,
-   "operator": 27,
-   "value": 170,
-   "missing condition": 25,
-   "extra condition": 22,
-   "multiple": 273,
-   "other": 17
-  },
-  "right_but_structurally_different": 466
- },
- "SmolLM2-360M / greedy": {
-  "n": 8421,
-  "wrong": 1072,
+  "wrong": 1053,
   "categories": {
    "invalid": 51,
-   "select column": 76,
-   "aggregation": 325,
-   "condition column": 168,
-   "operator": 37,
-   "value": 194,
-   "missing condition": 13,
-   "extra condition": 14,
-   "multiple": 184,
-   "other": 10
-  },
-  "right_but_structurally_different": 463
- },
- "SmolLM2-360M / schema": {
-  "n": 8421,
-  "wrong": 1048,
-  "categories": {
-   "invalid": 0,
-   "select column": 77,
-   "aggregation": 328,
-   "condition column": 180,
-   "operator": 39,
-   "value": 194,
-   "missing condition": 13,
-   "extra condition": 15,
-   "multiple": 191,
-   "other": 11
-  },
-  "right_but_structurally_different": 469
- },
- "SmolLM2-360M / values": {
-  "n": 8421,
-  "wrong": 972,
-  "categories": {
-   "invalid": 0,
-   "select column": 77,
-   "aggregation": 332,
+   "select column": 72,
+   "aggregation": 322,
    "condition column": 181,
-   "operator": 39,
-   "value": 120,
-   "missing condition": 13,
-   "extra condition": 16,
-   "multiple": 183,
-   "other": 11
+   "operator": 34,
+   "value": 168,
+   "missing condition": 17,
+   "extra condition": 14,
+   "multiple": 186,
+   "other": 8
   },
-  "right_but_structurally_different": 472
+  "right_but_structurally_different": 454
+ },
+ "GPT-2 124M": {
+  "n": 8421,
+  "wrong": 1734,
+  "categories": {
+   "invalid": 131,
+   "select column": 97,
+   "aggregation": 385,
+   "condition column": 306,
+   "operator": 34,
+   "value": 387,
+   "missing condition": 19,
+   "extra condition": 32,
+   "multiple": 327,
+   "other": 16
+  },
+  "right_but_structurally_different": 440
+ },
+ "Pythia-160M": {
+  "n": 8421,
+  "wrong": 2868,
+  "categories": {
+   "invalid": 540,
+   "select column": 143,
+   "aggregation": 343,
+   "condition column": 553,
+   "operator": 23,
+   "value": 538,
+   "missing condition": 50,
+   "extra condition": 25,
+   "multiple": 639,
+   "other": 14
+  },
+  "right_but_structurally_different": 501
+ },
+ "No pretraining (ours, random init)": {
+  "n": 8421,
+  "wrong": 5246,
+  "categories": {
+   "invalid": 1715,
+   "select column": 149,
+   "aggregation": 162,
+   "condition column": 537,
+   "operator": 23,
+   "value": 1497,
+   "missing condition": 29,
+   "extra condition": 20,
+   "multiple": 1114,
+   "other": 0
+  },
+  "right_but_structurally_different": 427
  }
 }

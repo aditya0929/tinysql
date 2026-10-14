@@ -110,9 +110,10 @@ def main():
     ap.add_argument("--model_dir", required=True)
     ap.add_argument("--decode", default="values", choices=["schema", "values"])
     ap.add_argument("--out", required=True)
+    ap.add_argument("--split", default="dev", choices=["dev", "test"])
     ap.add_argument("--limit", type=int, default=None)
     a = ap.parse_args()
-    run(a.model_dir, a.decode, a.out, limit=a.limit)
+    run(a.model_dir, a.decode, a.out, split=a.split, limit=a.limit)
 
 
 if __name__ == "__main__":

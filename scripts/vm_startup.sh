@@ -26,4 +26,11 @@ if [ -f "$H/benchmark/state.json" ] && ! grep -q '"finished"' "$H/benchmark/stat
   sudo -u $U bash -c "cd $H && setsid nohup bash scripts/run_benchmark.sh $BUCKET >> /tmp/benchmark_launcher.log 2>&1 < /dev/null &"
   exit 0
 fi
+if [ -f "$H/benchmark/test_state.json" ] && ! grep -q '"finished"' "$H/benchmark/test_state.json"; then
+  [ "$DRY_RUN" = "1" ] && { echo "startup: WOULD resume the test phase"; exit 0; }
+  echo "startup: resuming the test phase at $(date -u +%FT%TZ)" >> "$H/logs/test.log"
+  sleep 45
+  sudo -u $U bash -c "cd $H && setsid nohup bash scripts/run_benchmark.sh $BUCKET --test >> /tmp/benchmark_launcher.log 2>&1 < /dev/null &"
+  exit 0
+fi
 echo "startup: nothing to resume"

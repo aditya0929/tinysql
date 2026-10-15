@@ -1,0 +1,518 @@
+{
+ "population": "TinySQL-125M seed-0 greedy dev answers wrong ONLY in the aggregation (298)",
+ "shared_by_all_five_pretrained_models": 90,
+ "sample": "50, random.seed(0)",
+ "verdicts": {
+  "gold label not supported by the question": 31,
+  "ambiguous": 12,
+  "model wrong": 7
+ },
+ "within_shared_sample": {
+  "L": 12,
+  "A": 3,
+  "M": 1
+ },
+ "annotator": "single annotator (project author), not blinded",
+ "rows": [
+  {
+   "n": 1,
+   "dev_index": 30,
+   "question": "how many division  did not qualify for u.s. open cup in 2003",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Division",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 2,
+   "dev_index": 288,
+   "question": "How many innings had a total of 2 catches and 0 stumpings?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Innings",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 3,
+   "dev_index": 679,
+   "question": "What is the modern equivalent of the former kingdom \"silla\" with the hanja 尙州?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Modern equivalent",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 4,
+   "dev_index": 1034,
+   "question": "Name the number of candidates for # of seats won being 43",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "# of candidates",
+   "all_five_models_agg_error": false,
+   "verdict": "M"
+  },
+  {
+   "n": 5,
+   "dev_index": 1072,
+   "question": "If the total points is 50.5, what is the total number of dances?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Number of Dances",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 6,
+   "dev_index": 1320,
+   "question": "What was the earlier round where Takashi Kogure got the fastest lap?",
+   "gold_agg": "MIN",
+   "ours_agg": "none",
+   "column": "Round",
+   "all_five_models_agg_error": false,
+   "verdict": "M"
+  },
+  {
+   "n": 7,
+   "dev_index": 1739,
+   "question": "How many points does Marussia Manor Racing have?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Points",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 8,
+   "dev_index": 1745,
+   "question": "What is the number of the sail with an overall length of 13.68?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Sail number",
+   "all_five_models_agg_error": false,
+   "verdict": "M"
+  },
+  {
+   "n": 9,
+   "dev_index": 1774,
+   "question": "HOw many no votes were there when there were 45.60% yes votes",
+   "gold_agg": "MIN",
+   "ours_agg": "COUNT",
+   "column": "NO votes",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 10,
+   "dev_index": 1775,
+   "question": "what is the measure number for the init type?",
+   "gold_agg": "none",
+   "ours_agg": "MIN",
+   "column": "meas. num",
+   "all_five_models_agg_error": false,
+   "verdict": "M"
+  },
+  {
+   "n": 11,
+   "dev_index": 2596,
+   "question": "What is the sum of week number(s) had an attendance of 61,985?",
+   "gold_agg": "COUNT",
+   "ours_agg": "SUM",
+   "column": "Week",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 12,
+   "dev_index": 2678,
+   "question": "How many people were in the crowd when Essendon was the home team?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Crowd",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 13,
+   "dev_index": 2747,
+   "question": "At the match where the away team scored 4.5 (29), what was the crowd size?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Crowd",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 14,
+   "dev_index": 3196,
+   "question": "What is the sequence length (aa) of the protein with the common name Purple Sea Urchin and a divergence from human lineage less than 742.9?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "sequence length (aa)",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 15,
+   "dev_index": 3351,
+   "question": "What is the number of draws for the team with more than 8 losses and 13 points?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Draws",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 16,
+   "dev_index": 3503,
+   "question": "What is the number of Frequency MHz in woodstock, georgia?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Frequency MHz",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 17,
+   "dev_index": 3535,
+   "question": "How many wins did he have when he played under 2 events?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Wins",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 18,
+   "dev_index": 3728,
+   "question": "How many 2007's have a 2003 less than 36,4, 27,9 as a 2001, and a 1999 less than 25,2?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "2007",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 19,
+   "dev_index": 3752,
+   "question": "What is the number listed under against when there were less than 13 losses and less than 2 byes?",
+   "gold_agg": "COUNT",
+   "ours_agg": "AVG",
+   "column": "Against",
+   "all_five_models_agg_error": true,
+   "verdict": "A"
+  },
+  {
+   "n": 20,
+   "dev_index": 3930,
+   "question": "Which Height (cm) has a Birthplace of new canaan, connecticut?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Height (cm)",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 21,
+   "dev_index": 3957,
+   "question": "How many Games for Terence Morris?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Games",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 22,
+   "dev_index": 3958,
+   "question": "What is the number of Games for Partizan Belgrade player Nikola Peković with a Rank of more than 4?",
+   "gold_agg": "MIN",
+   "ours_agg": "COUNT",
+   "column": "Games",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 23,
+   "dev_index": 4194,
+   "question": "How many rounds have john o'day as the name, and a pick less than 3?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Round",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 24,
+   "dev_index": 4829,
+   "question": "What is the attendance number in the final round?",
+   "gold_agg": "SUM",
+   "ours_agg": "none",
+   "column": "Attendance",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 25,
+   "dev_index": 4881,
+   "question": "Which Angle from center/° has a Taper/ft smaller than 0.6000000000000001?",
+   "gold_agg": "COUNT",
+   "ours_agg": "MAX",
+   "column": "Angle from center/°",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 26,
+   "dev_index": 5045,
+   "question": "How many opponents were there in a game higher than 20 on January 28?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Opponents",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 27,
+   "dev_index": 5111,
+   "question": "In which game did the opponent score more than 103 and the record was 1-3?",
+   "gold_agg": "AVG",
+   "ours_agg": "none",
+   "column": "Game",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 28,
+   "dev_index": 5175,
+   "question": "What was the number of the crowd when the Wollongong Hawks were the home team?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Crowd",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 29,
+   "dev_index": 5247,
+   "question": "What is the Total of the Player with a Finish of 1?",
+   "gold_agg": "COUNT",
+   "ours_agg": "SUM",
+   "column": "Total",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 30,
+   "dev_index": 5790,
+   "question": "Which Crowd has an Away team score of 8.6 (54)?",
+   "gold_agg": "AVG",
+   "ours_agg": "none",
+   "column": "Crowd",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 31,
+   "dev_index": 5861,
+   "question": "What is the listed crowd when hawthorn is away?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Crowd",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 32,
+   "dev_index": 6102,
+   "question": "What is the total Crowd number for the team that has an Away team score of 12.18 (90)?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Crowd",
+   "all_five_models_agg_error": false,
+   "verdict": "M"
+  },
+  {
+   "n": 33,
+   "dev_index": 6180,
+   "question": "What is the total subframe count with Bits of 18–22?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Subframe #",
+   "all_five_models_agg_error": true,
+   "verdict": "A"
+  },
+  {
+   "n": 34,
+   "dev_index": 6278,
+   "question": "Where does Iceland rank with under 19 silvers?",
+   "gold_agg": "MAX",
+   "ours_agg": "none",
+   "column": "Rank",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 35,
+   "dev_index": 6377,
+   "question": "How many people were in the crowd with the away team being collingwood?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Crowd",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 36,
+   "dev_index": 6481,
+   "question": "For teams with more than 0 ties and goals against of 37, how many wins were tallied?",
+   "gold_agg": "MAX",
+   "ours_agg": "COUNT",
+   "column": "Wins",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 37,
+   "dev_index": 6520,
+   "question": "How many weeks was there an attendance of 74,347?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Week",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 38,
+   "dev_index": 6914,
+   "question": "What is the number of goals with less than 14 wins and a goal difference less than -4?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Goals for",
+   "all_five_models_agg_error": true,
+   "verdict": "A"
+  },
+  {
+   "n": 39,
+   "dev_index": 6960,
+   "question": "WHAT GOALS AGAINST HAD A GOAL FOR OF 46, AND PLAYED LESS THAN 38?",
+   "gold_agg": "SUM",
+   "ours_agg": "none",
+   "column": "Goals Against",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 40,
+   "dev_index": 7008,
+   "question": "What is the points total for the team with points average more than 34, 1984 score more than 37 and N/A in 1982?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Total points",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 41,
+   "dev_index": 7115,
+   "question": "How much money has been won by Stephen Ames?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Money ( £ )",
+   "all_five_models_agg_error": true,
+   "verdict": "M"
+  },
+  {
+   "n": 42,
+   "dev_index": 7198,
+   "question": "What's the total that the position is less than 1?",
+   "gold_agg": "MIN",
+   "ours_agg": "COUNT",
+   "column": "Total",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 43,
+   "dev_index": 7313,
+   "question": "How many wins did Cobden have when draws were more than 0?",
+   "gold_agg": "COUNT",
+   "ours_agg": "AVG",
+   "column": "Wins",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 44,
+   "dev_index": 7414,
+   "question": "What is the total when there were less than 0 bronze?",
+   "gold_agg": "COUNT",
+   "ours_agg": "AVG",
+   "column": "Total",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 45,
+   "dev_index": 7503,
+   "question": "How tall is the Mountain of jbel ghat?",
+   "gold_agg": "COUNT",
+   "ours_agg": "none",
+   "column": "Height (m)",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 46,
+   "dev_index": 7661,
+   "question": "How many are in the Labour Party of a Fianna Fail of 3 with a total higher than 9 and more than 2 in the Green Party?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Labour Party",
+   "all_five_models_agg_error": false,
+   "verdict": "A"
+  },
+  {
+   "n": 47,
+   "dev_index": 7703,
+   "question": "What is Davis Love III's total?",
+   "gold_agg": "none",
+   "ours_agg": "COUNT",
+   "column": "Total",
+   "all_five_models_agg_error": false,
+   "verdict": "M"
+  },
+  {
+   "n": 48,
+   "dev_index": 7743,
+   "question": "For record 25-24, what is the sum of attendance?",
+   "gold_agg": "COUNT",
+   "ours_agg": "SUM",
+   "column": "Attendance",
+   "all_five_models_agg_error": true,
+   "verdict": "L"
+  },
+  {
+   "n": 49,
+   "dev_index": 8010,
+   "question": "How many years had more than 0 points?",
+   "gold_agg": "SUM",
+   "ours_agg": "COUNT",
+   "column": "Year",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  },
+  {
+   "n": 50,
+   "dev_index": 8098,
+   "question": "What is the Mach with Vehicle Flight # m2-f2 #8 and an Altitude (meters) greater than 13,716?",
+   "gold_agg": "SUM",
+   "ours_agg": "none",
+   "column": "Mach",
+   "all_five_models_agg_error": false,
+   "verdict": "L"
+  }
+ ]
+}

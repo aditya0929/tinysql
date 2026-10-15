@@ -2,7 +2,7 @@
 
 A running, detailed record of what has been built, how, why, what broke, and what was measured. It complements [TINYSQL_PLAN.md](TINYSQL_PLAN.md) (the design and the intended road map). This file records what has actually happened. Every number below was measured in this repository unless marked as an estimate.
 
-Last updated: 2026-10-08.
+Last updated: 2026-10-15.
 
 ---
 
@@ -15,14 +15,15 @@ Last updated: 2026-10-08.
 | C. Data pipeline (token shards, loader) | **done**: 5.41B training tokens in `data/shards/` (section 6.5) |
 | D. Model from scratch + verification | **done**, matches a reference Llama to 1e-4 |
 | E. Pretraining (optimizer, loop, run) | **done**: 4.51B tokens, 8,600 steps, ~46 h on one L4 (section 13) |
-| F. Ablations and scaling | not started |
-| G. Instruction tuning | not started |
-| H. Text-to-SQL fine-tuning | **done**: **78.4% execution accuracy on WikiSQL dev** (section 14) |
-| I. Decoding (beam, constrained) | **constrained decoding done** (section 15): 100% validity, +3.0 points; beam search not started |
-| J. Benchmarking and failure analysis | **dev benchmark done** against fine-tuned SmolLM2-135M/360M, greedy and constrained (section 15); test set, seeds, CIs, official evaluator, failure analysis not started |
+| F. Ablations and scaling | **ablations done** on the 25M proxy: RoPE, GQA, tied embeddings, data mix (section 16.4); scaling study not done |
+| G. Instruction tuning | not started (out of scope for the report) |
+| H. Text-to-SQL fine-tuning | **done**: WikiSQL **test 77.95 ± 0.18%** greedy, **80.39 ± 0.20%** with schema + values constraints (3 seeds, section 17) |
+| I. Decoding (beam, constrained) | **constrained decoding done** (section 15): 100% validity, never breaks a correct answer of ours; beam search not done |
+| J. Benchmarking and failure analysis | **done**: GPT-2, Pythia-160M, SmolLM2-135M/360M with the same recipe, LR sweep, 3 seeds, no-pretraining control, CIs and paired tests, failure categories, aggregation-label audit, official evaluator on dev and test (sections 15 to 17) |
 | K. Demo, model card, README | not started |
+| L. Technical report (Zenodo) | not started; all results final |
 
-Tests: **147 passing** (`python -m pytest tests`).
+Tests: **166 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -559,7 +560,7 @@ Every difference is significant. With our model, constrained decoding almost nev
 
 Findings:
 1. **The gap to the baselines is about reading the table, not about SQL.** Ours loses most on condition columns (+2.4 points vs SmolLM2-360M), values (+2.0) and invalid SQL (+1.7, nearly all unknown column names). These are the skills more pretraining text builds.
-2. **Aggregation errors are flat across models** (3.7 / 3.8 / 3.9% even though overall accuracy spans 9 points). A model nearly three times larger with 900x the data does no better. This is consistent with noise in WikiSQL's aggregation labels rather than a model weakness; a manual look at a sample of these cases is still to do.
+2. **Aggregation errors are flat across models** (3.7 / 3.8 / 3.9% even though overall accuracy spans 9 points). A model nearly three times larger with 900x the data does no better. This is consistent with noise in WikiSQL's aggregation labels rather than a model weakness; the hand audit in 17.1 supports it.
 3. **The value constraint works as intended:** value-only errors drop from 366 to 215 for ours (and 309 to 170, 194 to 120 for the baselines); the other categories barely move.
 4. 5.3-5.6% of answers are right by execution but structurally different from gold, for every model. Execution accuracy and logical-form accuracy differ by roughly this amount.
 
@@ -720,3 +721,28 @@ Constraint gains on test (same weights): ours +1.05 (schema), fixing 166 questio
    - Seed std stays at 0.1 to 0.4.
 3. **Our dev-to-test drop is small** (78.63 → 77.95), similar to the baselines (0.3 to 0.7). Model selection on dev did not overfit.
 4. **Pythia is the exception:** 65.9 on dev but 60.8 on test, on different re-fine-tunes. Its fine-tuning is unstable (gradient norms in the thousands early on; LR 2e-4 collapsed on the sweep), so a single seed is noisy for Pythia. Its rank (last among pretrained models) is unchanged.
+
+### 17.1 Hand audit of aggregation errors (`results/aggregation_audit.json`)
+
+**Question:** aggregation errors stay at about 3.5 to 4.6% of questions for every pretrained model, on dev and on test, even though overall accuracy spans 20 points. Is that the models, or the labels?
+
+**Method:**
+- Population: our model's dev answers (seed 0, greedy) that are wrong only in the aggregation, 298 of them. For 90 of these questions, all five pretrained models make an aggregation-only error.
+- Sample: 50 drawn at random (`random.seed(0)`).
+- For each, I judged whether the question actually asks for the gold aggregation:
+  - **L**, label not supported: the gold aggregation is not what the question asks for. Examples: "How many people were in the crowd when Essendon was the home team?" labelled COUNT(Crowd); "What is the modern equivalent of ... silla?" labelled COUNT; "For record 25-24, what is the sum of attendance?" labelled COUNT.
+  - **A**, ambiguous: both readings are defensible, e.g. "How many rounds have john o'day as the name ..." labelled SUM(Round) where COUNT is also natural.
+  - **M**, model wrong: the gold label is right and the model is not. Examples: "How much money has been won by Stephen Ames?" answered with COUNT; "What was the earlier round ..." missing MIN.
+
+| Verdict | All 50 | The 16 that all five models also get wrong |
+|---|---|---|
+| L: gold label not supported | **31 (62%)** | 12 |
+| A: ambiguous | 12 (24%) | 3 |
+| M: model wrong | 7 (14%) | 1 |
+
+**Result:**
+- About 6 in 10 of our aggregation "errors" are label problems. Only about 1 in 7 is clearly the model's fault (95% Wilson CI for the label share: 48% to 74%).
+- Extrapolated to the 298 errors, that is about 185 questions, or about 2.2 points of dev accuracy, where a correct-looking answer is marked wrong.
+- This bounds what any model can score on WikiSQL as labelled, and it explains why the aggregation error rate does not shrink as models get stronger.
+
+**Limits:** one annotator (the project author), not blinded to which answer came from the model, and a 50-example sample. The labelled examples are in the JSON for anyone to re-judge. Prior reports of WikiSQL annotation noise are to be checked and cited when writing the paper.

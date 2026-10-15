@@ -3,6 +3,7 @@
   docs/figures/accuracy_vs_tokens.png   dev execution accuracy (greedy, mean over seeds, 95% CI) against pretraining tokens
   docs/figures/failure_categories.png   what goes wrong in each model's wrong answers (greedy, seed 0)
   docs/figures/ablations.png            the 25M-proxy ablations (greedy, 95% CI)
+  *_test.png                            the first two again on the test set
 
 Pretraining token counts are from the model cards: SmolLM2-135M 2T, SmolLM2-360M 4T (huggingface.co/HuggingFaceTB),
 Pythia-160M 299.9B (github.com/EleutherAI/pythia). GPT-2's token count was never published, so it is drawn as a
@@ -35,7 +36,7 @@ def _style(ax):
     ax.grid(axis="both", alpha=0.25, linewidth=0.6)
 
 
-def accuracy_vs_tokens(res):
+def accuracy_vs_tokens(res, split="dev", suffix=""):
     sysres = res["systems"]
     fig, ax = plt.subplots(figsize=(6.8, 4.4), dpi=160)
     for name, params, tokens, colour in MODELS:
@@ -59,14 +60,14 @@ def accuracy_vs_tokens(res):
     ax.set_xlim(1e9, 6e13)
     ax.set_ylim(30, 92)
     ax.set_xlabel("pretraining tokens (log scale)")
-    ax.set_ylabel("WikiSQL dev execution accuracy (%)")
+    ax.set_ylabel(f"WikiSQL {split} execution accuracy (%)")
     ax.set_title("Accuracy against pretraining data (greedy decoding, 95% CI)", fontsize=10)
     _style(ax)
     fig.tight_layout()
-    fig.savefig(OUT / "accuracy_vs_tokens.png")
+    fig.savefig(OUT / f"accuracy_vs_tokens{suffix}.png")
 
 
-def failure_categories(failures):
+def failure_categories(failures, split="dev", suffix=""):
     cats = ["invalid", "select column", "aggregation", "condition column", "operator", "value",
             "missing condition", "extra condition", "multiple", "other"]
     fig, ax = plt.subplots(figsize=(7.4, 5.6), dpi=160)
@@ -78,13 +79,13 @@ def failure_categories(failures):
                 label=f"{name} ({100 * f['wrong'] / f['n']:.1f}% wrong)")
     ax.set_yticks(range(len(cats)), cats)
     ax.invert_yaxis()
-    ax.set_xlabel("share of all dev questions (%)")
+    ax.set_xlabel(f"share of all {split} questions (%)")
     ax.set_title("Where the wrong answers come from (greedy decoding, seed 0)", fontsize=10)
     ax.legend(frameon=False, fontsize=7.5, loc="upper center", bbox_to_anchor=(0.4, -0.1), ncol=3)
     _style(ax)
     ax.grid(axis="y", visible=False)
     fig.tight_layout()
-    fig.savefig(OUT / "failure_categories.png")
+    fig.savefig(OUT / f"failure_categories{suffix}.png")
 
 
 def ablations(res):
@@ -116,6 +117,9 @@ def main():
     accuracy_vs_tokens(res)
     failure_categories(json.loads(Path("results/failures_dev.json").read_text()))
     ablations(res)
+    if Path("results/benchmark_test.json").exists():                    # test: same figures, no ablations
+        accuracy_vs_tokens(json.loads(Path("results/benchmark_test.json").read_text()), "test", "_test")
+        failure_categories(json.loads(Path("results/failures_test.json").read_text()), "test", "_test")
 
 
 if __name__ == "__main__":

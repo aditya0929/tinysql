@@ -746,3 +746,21 @@ Constraint gains on test (same weights): ours +1.05 (schema), fixing 166 questio
 - This bounds what any model can score on WikiSQL as labelled, and it explains why the aggregation error rate does not shrink as models get stronger.
 
 **Limits:** one annotator (the project author), not blinded to which answer came from the model, and a 50-example sample. The labelled examples are in the JSON for anyone to re-judge. Prior reports of WikiSQL annotation noise are to be checked and cited when writing the paper.
+
+### 17.2 Official WikiSQL evaluator on test (`scripts/official_test.py`, `results/wikisql_test_official.json`)
+
+All 29 test prediction files were scored with Salesforce's unmodified `evaluate.py`, set up as in 15.5. Sanity check first: the gold test queries, passed as predictions, score exactly 100% logical form, 100% execution and 100% parsed.
+
+| Model | Seeds | Official execution: greedy | schema | schema + values | Official logical form: greedy | schema + values |
+|---|---|---|---|---|---|---|
+| **TinySQL-125M (ours)** | 3 | **78.03 ± 0.19** | 79.14 | **80.50 ± 0.20** | 72.28 ± 0.09 | 74.48 ± 0.07 |
+| GPT-2 124M | 1 | 78.94 | 80.07 | 82.35 | 73.25 | 76.41 |
+| Pythia-160M | 1 | 61.02 | 64.25 | 68.04 | 55.10 | 61.17 |
+| SmolLM2-135M | 3 | 82.61 ± 0.35 | 83.22 | 85.27 ± 0.19 | 77.42 ± 0.39 | 79.91 ± 0.25 |
+| SmolLM2-360M | 3 | 87.00 ± 0.17 | 87.36 | 87.99 ± 0.10 | 81.71 ± 0.17 | 82.66 ± 0.10 |
+| No pretraining | 1 | 37.64 | – | 48.46 | 31.60 | 40.76 |
+
+**Agreement with our executor:**
+- Within 0.11 points on every run of ours, GPT-2 and both SmolLM2 models.
+- Up to 0.40 points for Pythia and the no-pretraining model, the official evaluator being higher. Both produce many unusual outputs, where the official evaluator's more lenient value comparison (case and number normalisation) counts a few more as correct.
+- No ranking or conclusion changes between the two scorers.

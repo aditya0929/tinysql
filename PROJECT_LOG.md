@@ -762,5 +762,5 @@ All 29 test prediction files were scored with Salesforce's unmodified `evaluate.
 
 **Agreement with our executor:**
 - Within 0.11 points on every run of ours, GPT-2 and both SmolLM2 models.
-- Up to 0.40 points for Pythia and the no-pretraining model, the official evaluator being higher. Both produce many unusual outputs, where the official evaluator's more lenient value comparison (case and number normalisation) counts a few more as correct.
+- Up to 0.40 points for Pythia and the no-pretraining model, the official evaluator being higher. Both produce many unusual outputs. A likely reason, not yet checked case by case, is that the official evaluator's value handling (case and number normalisation) is more lenient and counts a few more as correct.
 - No ranking or conclusion changes between the two scorers.

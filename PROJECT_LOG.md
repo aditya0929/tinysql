@@ -2,7 +2,7 @@
 
 A running, detailed record of what has been built, how, why, what broke, and what was measured. It complements [TINYSQL_PLAN.md](TINYSQL_PLAN.md) (the design and the intended road map). This file records what has actually happened. Every number below was measured in this repository unless marked as an estimate.
 
-Last updated: 2026-10-15.
+Last updated: 2026-10-15. Technical report published: DOI 10.5281/zenodo.23396770.
 
 ---
 
@@ -21,7 +21,7 @@ Last updated: 2026-10-15.
 | I. Decoding (beam, constrained) | **constrained decoding done** (section 15): 100% validity, never breaks a correct answer of ours; beam search not done |
 | J. Benchmarking and failure analysis | **done**: GPT-2, Pythia-160M, SmolLM2-135M/360M with the same recipe, LR sweep, 3 seeds, no-pretraining control, CIs and paired tests, failure categories, aggregation-label audit, official evaluator on dev and test (sections 15 to 17) |
 | K. Demo, model card, README | not started |
-| L. Technical report (Zenodo) | not started; all results final |
+| L. Technical report (Zenodo) | **published** 2026-10-15, DOI [10.5281/zenodo.23396770](https://doi.org/10.5281/zenodo.23396770) |
 
 Tests: **166 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).

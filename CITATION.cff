@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite the technical report."
+title: "TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens"
+authors:
+  - family-names: Jha
+    given-names: Aditya Narayan
+    orcid: "https://orcid.org/0009-0000-0770-886X"
+repository-code: "https://github.com/aditya0929/tinysql"
+doi: 10.5281/zenodo.23396770
+date-released: 2026-10-15
+preferred-citation:
+  type: report
+  title: "TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens"
+  authors:
+    - family-names: Jha
+      given-names: Aditya Narayan
+      orcid: "https://orcid.org/0009-0000-0770-886X"
+  doi: 10.5281/zenodo.23396770
+  publisher:
+    name: Zenodo
+  year: 2026
+  url: "https://doi.org/10.5281/zenodo.23396770"

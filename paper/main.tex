@@ -47,7 +47,7 @@ To answer it credibly, the system is built without any pretrained weights, pretr
 \begin{figure}[!htbp]
 \centering
 \resizebox{\linewidth}{!}{\input{figures/pipeline.tex}}
-\caption{The TinySQL pipeline. Every stage is implemented in this project; pretrained weights and tokenizers are used only for the baselines.}
+\caption{\textbf{End-to-end pipeline.} Every stage is implemented in this project; pretrained weights and tokenizers are used only for the baselines.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -86,14 +86,14 @@ Embeddings & tied input/output, vocabulary 32,768 \\
 Parameters & 125,077,824 \\
 \bottomrule
 \end{tabular}
-\caption{TinySQL-125M architecture. The parameter count is derived by hand and asserted in a test.}
+\caption{\textbf{Model hyperparameters} of TinySQL-125M. The parameter count is derived by hand and asserted in a test.}
 \label{tab:arch}
 \end{table}
 
 \begin{figure}[!htbp]
 \centering
 \resizebox{0.97\linewidth}{!}{\input{figures/arch.tex}}
-\caption{TinySQL-125M. Left: a Llama-style pre-norm decoder with 30 blocks (blue lines: residual connections); the output head reuses the embedding matrix. Right: grouped-query attention, where each of the 3 key/value heads serves 3 query heads, and the parameter budget by component.}
+\caption{\textbf{Model architecture.} (a)~The Llama-style pre-norm decoder: 30 identical blocks between a token embedding and an output head that reuses the embedding matrix (tied weights); blue lines are residual connections. (b)~Grouped-query attention: each of the 3 key/value heads serves 3 of the 9 query heads. (c)~Parameter budget by component.}
 \label{fig:arch}
 \end{figure}
 
@@ -116,7 +116,7 @@ Gretel synthetic text-to-SQL~\cite{gretel2024synthetic} ($\times$3) & 99,164 & 0
 Total & & 5.41B & \\
 \bottomrule
 \end{tabular}
-\caption{Pretraining shards after cleaning, deduplication and decontamination. The mix actually trained on is set by sampling weights (Section~\ref{sec:pretrain}).}
+\caption{\textbf{Pretraining corpus:} shards after cleaning, deduplication and decontamination. The mix actually trained on is set by sampling weights (Section~\ref{sec:pretrain}).}
 \label{tab:data}
 \end{table}
 
@@ -132,7 +132,7 @@ We train with our own AdamW~\cite{loshchilov2019adamw} ($\beta = (0.9, 0.95)$, w
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.85\linewidth]{data_mix.png}
-\caption{Pretraining data mix: share of sampled tokens per source over the run. Sources are sampled at training time from fixed shards, so the mix can change without re-tokenising.}
+\caption{\textbf{Pretraining data mix:} share of sampled tokens per source over the run. Sources are sampled at training time from fixed shards, so the mix can change without re-tokenising.}
 \label{fig:mix}
 \end{figure}
 
@@ -141,7 +141,7 @@ The run took about 46 hours on one NVIDIA L4 at 27k tokens/s (about 17\% model F
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.8\linewidth]{loss_curves.png}
-\caption{Pretraining loss curves. The drop in training loss at the mix switch (step 7,310) reflects the easier SQL-heavy mix and was predicted from the per-source losses beforehand.}
+\caption{\textbf{Pretraining curves:} training loss, validation loss per source, learning rate and gradient norm over the 8,600 steps. The drop in training loss at the mix switch (step 7,310) reflects the easier SQL-heavy mix and was predicted from the per-source losses beforehand.}
 \label{fig:loss}
 \end{figure}
 
@@ -160,7 +160,7 @@ Fine-tuning uses batch 32, 100 warmup steps, cosine decay, no weight decay and 3
 \begin{figure}[!htbp]
 \centering
 \resizebox{0.95\linewidth}{!}{\input{figures/constrained.tex}}
-\caption{Constrained decoding on a WikiSQL dev question (candidate tokens are illustrative). Candidates are tried left to right in model-score order: red ones would leave the grammar and are skipped, green is the first valid one. Checking is lazy, so usually only a few candidates are tested; the result equals masking every invalid token and taking the argmax.}
+\caption{\textbf{Constrained decoding} on a WikiSQL dev question (candidate tokens are illustrative). Candidates are tried left to right in model-score order: red ones would leave the grammar and are skipped, green is the first valid one. Checking is lazy, so usually only a few candidates are tested; the result equals masking every invalid token and taking the argmax.}
 \label{fig:constrained}
 \end{figure}
 
@@ -179,7 +179,7 @@ Fine-tuning uses batch 32, 100 warmup steps, cosine decay, no weight decay and 3
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.7\linewidth]{lr_sweep.png}
-\caption{Fine-tuning learning-rate sweep, seed 0. Every model gets its own best learning rate; $2\times10^{-4}$ is too high for all of them.}
+\caption{\textbf{Learning-rate sweep} for fine-tuning, seed 0. Every model gets its own best learning rate; $2\times10^{-4}$ is too high for all of them.}
 \label{fig:lr}
 \end{figure}
 
@@ -208,7 +208,7 @@ SmolLM2-360M & 4T & 3 & \pmstd{87.03}{0.19} & 87.42 & \pmstd{88.01}{0.12} \\
 Ours, no pretraining & 0 & 1 & 37.39 & -- & 48.33 \\
 \bottomrule
 \end{tabular}
-\caption{WikiSQL \textbf{test} execution accuracy (\%, 15,878 questions). Mean $\pm$ std over seeds; schema-only uses seed 0. 95\% bootstrap CIs are $\pm$0.5 to 0.8 points (Table~\ref{tab:official} and the repository). Dev results (Table~\ref{tab:dev}) agree closely.}
+\caption{\textbf{Main results:} WikiSQL \textbf{test} execution accuracy (\%, 15,878 questions). Mean $\pm$ std over seeds; schema-only uses seed 0. 95\% bootstrap CIs are $\pm$0.5 to 0.8 points (Table~\ref{tab:official} and the repository). Dev results (Table~\ref{tab:dev}) agree closely.}
 \label{tab:main}
 \end{table}
 
@@ -226,7 +226,7 @@ Pythia-160M $-$ ours & $-$17.23 [$-$18.0, $-$16.5] & 647 / 3383 & $<10^{-300}$ \
 Ours $-$ no pretraining & +40.62 [+39.8, +41.4] & 6704 / 254 & $<10^{-300}$ \\
 \bottomrule
 \end{tabular}
-\caption{Paired comparisons on test (seed 0). ``Discordant'' counts questions only the first system answers correctly, then questions only the second does.}
+\caption{\textbf{Paired significance tests} on test (seed 0). ``Discordant'' counts questions only the first system answers correctly, then questions only the second does.}
 \label{tab:paired}
 \end{table}
 
@@ -243,7 +243,7 @@ Table~\ref{tab:main} gives test accuracy and Table~\ref{tab:paired} the paired c
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.8\linewidth]{accuracy_vs_tokens_test.png}
-\caption{Test execution accuracy (greedy, 95\% CI) against pretraining tokens. GPT-2's token count is not published, so it is drawn as a reference line, as is our no-pretraining control.}
+\caption{\textbf{Accuracy vs.\ pretraining data:} test execution accuracy (greedy, 95\% CI) against pretraining tokens. GPT-2's token count is not published, so it is drawn as a reference line, as is our no-pretraining control.}
 \label{fig:tokens}
 \end{figure}
 
@@ -264,7 +264,7 @@ SmolLM2-360M & +0.21 & +0.94 & 189 / 40 \\
 No pretraining & -- & +10.94 & 1755 / 18 \\
 \bottomrule
 \end{tabular}
-\caption{Gain from constrained decoding over greedy decoding with the same weights (test, seed 0, points; all $p < 0.005$). ``Fixed'' and ``broken'' count questions that change from wrong to right and from right to wrong.}
+\caption{\textbf{Gains from constrained decoding} over greedy decoding with the same weights (test, seed 0, points; all $p < 0.005$). ``Fixed'' and ``broken'' count questions that change from wrong to right and from right to wrong.}
 \label{tab:constrained}
 \end{table}
 
@@ -273,7 +273,7 @@ Constraints raise validity to 100\% for every model and help weaker models more 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.8\linewidth]{decoding_gains.png}
-\caption{Test accuracy with greedy decoding (open circle), the schema constraint (square) and schema + values (filled circle); mean over seeds where available. The gain shrinks as the model gets stronger.}
+\caption{\textbf{Gains from constrained decoding:} test accuracy with greedy decoding (open circle), the schema constraint (square) and schema + values (filled circle); mean over seeds where available. The gain shrinks as the model gets stronger.}
 \label{fig:gains}
 \end{figure} The value constraint is worth more than the schema constraint for every model: copying filter values exactly is where small models slip most. For our model, constrained decoding \emph{never} turned a correct answer into a wrong one in any paired comparison we ran (0 broken on test at both levels; 0 on dev). For every baseline it sometimes does, plausibly because their tokenizers can be forced into token splits they rarely produce; we did not verify this.
 
@@ -294,14 +294,14 @@ Full multi-head attention & 26.7M & 55.08 & $-$0.75 & 0.055 \\
 Web text only (no SQL, code or Q\&A) & 25.2M & 54.89 & $-$0.94 & 0.021 \\
 \bottomrule
 \end{tabular}
-\caption{Ablations on a 25M-parameter proxy (8 layers, $d = 384$, context 1024), each pretrained on 150M tokens and fine-tuned with the same recipe. Greedy dev execution accuracy, one seed each; $p$ from McNemar against the base.}
+\caption{\textbf{Ablations} on a 25M-parameter proxy (8 layers, $d = 384$, context 1024), each pretrained on 150M tokens and fine-tuned with the same recipe. Greedy dev execution accuracy, one seed each; $p$ from McNemar against the base.}
 \label{tab:ablations}
 \end{table}
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.8\linewidth]{ablations.png}
-\caption{Ablations on the 25M proxy (dev, greedy, 95\% CI).}
+\caption{\textbf{Ablations} on the 25M proxy: one design change at a time from the base model (dev, greedy, 95\% CI).}
 \label{fig:ablations}
 \end{figure}
 
@@ -313,7 +313,7 @@ Table~\ref{tab:ablations} and Figure~\ref{fig:ablations} vary one design choice 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.85\linewidth]{failure_categories_test.png}
-\caption{Where wrong answers come from (test, greedy, seed 0). Each wrong prediction is parsed into WikiSQL's structured form and assigned exactly one category.}
+\caption{\textbf{Failure categories:} where wrong answers come from (test, greedy, seed 0). Each wrong prediction is parsed into WikiSQL's structured form and assigned exactly one category.}
 \label{fig:failures}
 \end{figure}
 
@@ -324,7 +324,7 @@ Each wrong prediction is parsed back into WikiSQL's structure (selected column, 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.7\linewidth]{accuracy_by_conditions.png}
-\caption{Test accuracy by the number of WHERE conditions in the gold query (greedy, seed 0). The 131 questions without conditions are omitted.}
+\caption{\textbf{Accuracy by query complexity:} test accuracy by the number of WHERE conditions in the gold query (greedy, seed 0). The 131 questions without conditions are omitted.}
 \label{fig:conds}
 \end{figure}
 
@@ -369,7 +369,7 @@ GPT-2 124M & 72.4 & 75.2 & 74.5 & $10^{-4}$ \\
 Pythia-160M & 56.9 & 58.5 & 45.7 & $10^{-4}$ \\
 \bottomrule
 \end{tabular}
-\caption{Learning-rate sweep: execution accuracy on the first 1,000 dev questions, best epoch, seed 0. Control: 28.6 ($10^{-4}$) vs 11.5 ($10^{-3}$).}
+\caption{\textbf{Learning-rate sweep (numbers):} execution accuracy on the first 1,000 dev questions, best epoch, seed 0. Control: 28.6 ($10^{-4}$) vs 11.5 ($10^{-3}$).}
 \label{tab:lr}
 \end{table}
 
@@ -388,7 +388,7 @@ SmolLM2-360M & \pmstd{87.40}{0.20} & 87.55$^*$ & \pmstd{88.41}{0.10} \\
 No pretraining & 37.70 & -- & 48.22 \\
 \bottomrule
 \end{tabular}
-\caption{WikiSQL \textbf{dev} execution accuracy (\%, 8,421 questions). $^*$Single run at learning rate $10^{-4}$.}
+\caption{\textbf{Dev results:} WikiSQL \textbf{dev} execution accuracy (\%, 8,421 questions). $^*$Single run at learning rate $10^{-4}$.}
 \label{tab:dev}
 \end{table}
 
@@ -409,7 +409,7 @@ SmolLM2-360M & \pmstd{87.00}{0.17} & \pmstd{87.99}{0.10} & \pmstd{81.71}{0.17} &
 No pretraining & 37.64 & 48.46 & 31.60 & 40.76 \\
 \bottomrule
 \end{tabular}
-\caption{Official WikiSQL evaluator on \textbf{test} (\%). 95\% bootstrap CIs (our executor) for the greedy rows: ours [77.4, 78.5], GPT-2 [78.3, 79.6], Pythia [60.0, 61.5], SmolLM2-135M [82.0, 83.1], SmolLM2-360M [86.6, 87.5], no pretraining [36.7, 38.1].}
+\caption{\textbf{Official evaluator:} WikiSQL \textbf{test} scores from Salesforce's evaluate.py (\%). 95\% bootstrap CIs (our executor) for the greedy rows: ours [77.4, 78.5], GPT-2 [78.3, 79.6], Pythia [60.0, 61.5], SmolLM2-135M [82.0, 83.1], SmolLM2-360M [86.6, 87.5], no pretraining [36.7, 38.1].}
 \label{tab:official}
 \end{table}
 

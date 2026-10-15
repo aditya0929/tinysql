@@ -1,0 +1,29 @@
+% End-to-end pipeline: data -> tokenizer -> pretraining -> fine-tuning -> decoding -> evaluation.
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >={Stealth[length=1.8mm]},
+  stage/.style={draw, rounded corners=3pt, align=center, minimum height=1.55cm, text width=2.55cm, fill=#1},
+  stage/.default=white,
+  node distance=4mm,
+]
+\node[stage=blue!8] (src) {\textbf{Sources}\\FineWeb-Edu\\The Stack (SQL)\\Stack Exchange\\Gretel synthetic};
+\node[stage=blue!8, right=of src] (clean) {\textbf{Clean \& dedup}\\quality filters\\exact hashing\\MinHash-LSH};
+\node[stage=blue!8, right=of clean] (decon) {\textbf{Decontaminate}\\vs WikiSQL dev/test\\0 hits in 4.7M docs\\control: 200/200};
+\node[stage=blue!8, right=of decon] (tok) {\textbf{Own BPE}\\32,768 tokens\\$\rightarrow$ 5.41B tokens\\in \texttt{uint16} shards};
+
+\node[stage=orange!14, below=8mm of tok] (pre) {\textbf{Pretrain}\\125M model, own AdamW\\4.51B tokens, 2-phase mix\\46 h on one L4};
+\node[stage=orange!14, left=of pre] (ft) {\textbf{Fine-tune}\\WikiSQL train (56k)\\loss on SQL only\\3 epochs};
+\node[stage=orange!14, left=of ft] (dec) {\textbf{Decode}\\greedy, or constrained:\\schema grammar\\+ values from question};
+\node[stage=green!12, left=of dec] (eval) {\textbf{Evaluate}\\execution accuracy\\official evaluator\\CIs, McNemar};
+
+\draw[->] (src) -- (clean);
+\draw[->] (clean) -- (decon);
+\draw[->] (decon) -- (tok);
+\draw[->] (tok) -- (pre);
+\draw[->] (pre) -- (ft);
+\draw[->] (ft) -- (dec);
+\draw[->] (dec) -- (eval);
+
+\node[anchor=south west, font=\scriptsize\itshape, gray] at ($(src.north west)+(0,0.05)$) {data};
+\node[anchor=north west, font=\scriptsize\itshape, gray] at ($(eval.south west)+(0,-0.05)$) {model and evaluation};
+\end{tikzpicture}

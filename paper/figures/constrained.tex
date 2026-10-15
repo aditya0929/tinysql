@@ -1,0 +1,29 @@
+% Constrained decoding, one step at a time: candidates are checked best-first against the grammar.
+\begin{tikzpicture}[
+  font=\small,
+  >={Stealth[length=1.6mm]},
+  tok/.style={draw, rounded corners=1.5pt, inner sep=2.4pt, font=\ttfamily\small},
+  ok/.style={tok, fill=green!15, draw=green!45!black},
+  bad/.style={tok, fill=red!8, draw=red!60!black, text=red!60!black},
+  note/.style={anchor=west, align=left, font=\footnotesize, text width=4.6cm},
+]
+\node[align=left, anchor=west, text width=12.5cm] (ctx) at (0,0) {%
+  \textbf{Columns:} \texttt{"Player"}, \texttt{"No."}, \texttt{"Nationality"}, \texttt{"Position"},\\
+  \hspace*{1.6cm}\texttt{"Years in Toronto"}, \texttt{"School/Club Team"}\\[2pt]
+  \textbf{Question:} What position does the player who played for butler cc (ks) play?};
+
+% step 1: column
+\node[anchor=west] (p1) at (0,-1.35) {\texttt{SELECT "}\,\(\vert\)};
+\node[bad, right=5mm of p1] (c11) {Role};
+\node[bad, right=2mm of c11] (c12) {Pos.};
+\node[ok, right=2mm of c12] (c13) {Position};
+\node[note, text width=12cm, gray!40!black] at (0.3,-1.85) {\textbf{schema level:} only prefixes of real column names pass};
+\draw[->, gray] (p1) -- (c11);
+
+% step 2: value
+\node[anchor=west] (p2) at (0,-2.65) {\texttt{\dots"School/Club Team" = '}\,\(\vert\)};
+\node[bad, right=4mm of p2] (c21) {Butler College};
+\node[ok, right=2mm of c21] (c22) {butler cc};
+\node[note, text width=12cm, gray!40!black] at (0.3,-3.15) {\textbf{values level:} a condition value must also be a substring of the question};
+\draw[->, gray] (p2) -- (c21);
+\end{tikzpicture}

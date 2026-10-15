@@ -1,0 +1,80 @@
+% TinySQL-125M architecture (left) and grouped-query attention head sharing (right).
+\begin{tikzpicture}[
+  font=\small,
+  >={Stealth[length=2mm]},
+  box/.style={draw, rounded corners=2pt, minimum width=5.4cm, minimum height=0.62cm, align=center, fill=#1},
+  box/.default=white,
+  op/.style={draw, circle, inner sep=0pt, minimum size=4.2mm, fill=white},
+  io/.style={align=center},
+  node distance=3.2mm,
+]
+% ---------------- main stack (bottom to top) ----------------
+\node[io] (ids) {token ids \ (\texttt{<schema>\dots</schema><question>\dots</question><sql>})};
+\node[box=blue!8, above=of ids] (emb) {Token embedding $E$ \quad $32{,}768 \times 576$};
+
+\node[box=gray!12, above=7mm of emb] (n1) {RMSNorm};
+\node[box=blue!14, above=of n1, minimum height=1.05cm] (att) {Grouped-query self-attention\\[-1pt]\footnotesize 9 query heads, 3 key/value heads, head dim 64\\[-1pt]\footnotesize RoPE on $q,k$ \ $\cdot$ \ causal mask \ $\cdot$ \ KV cache};
+\node[op, above=of att] (add1) {$+$};
+\node[box=gray!12, above=of add1] (n2) {RMSNorm};
+\node[box=orange!14, above=of n2, minimum height=1.05cm] (mlp) {SwiGLU MLP\\[-1pt]\footnotesize $W_{\text{down}}\big(\mathrm{SiLU}(W_{\text{gate}}x)\odot W_{\text{up}}x\big)$\\[-1pt]\footnotesize $576 \rightarrow 1536 \rightarrow 576$};
+\node[op, above=of mlp] (add2) {$+$};
+
+\node[box=gray!12, above=7mm of add2] (nf) {Final RMSNorm};
+\node[box=blue!8, above=of nf] (head) {LM head $=E^{\top}$ \ (tied with the embedding)};
+\node[io, above=of head] (out) {next-token logits over 32,768 tokens};
+
+% block frame
+\begin{scope}[on background layer]
+  \node[draw, dashed, rounded corners=4pt, fit=(n1)(att)(add1)(n2)(mlp)(add2), inner xsep=9mm, inner ysep=2.5mm, fill=gray!3] (blk) {};
+\end{scope}
+\node[anchor=north east, font=\bfseries, inner sep=3pt] at (blk.north east) {$\times 30$};
+\node[anchor=north west, font=\footnotesize, inner sep=3pt] at ($(blk.north west)+(0.5,0)$) {pre-norm decoder block};
+
+% main path arrows
+\draw[->] (ids) -- (emb);
+\draw[->] (emb) -- (n1);
+\draw[->] (n1) -- (att);
+\draw[->] (att) -- (add1);
+\draw[->] (add1) -- (n2);
+\draw[->] (n2) -- (mlp);
+\draw[->] (mlp) -- (add2);
+\draw[->] (add2) -- (nf);
+\draw[->] (nf) -- (head);
+\draw[->] (head) -- (out);
+
+% residual connections
+\coordinate (r1) at ($(n1.south)!0.5!(emb.north)$);
+\draw[->, thick, blue!50!black] (r1) -- ++(-3.4,0) |- (add1.west);
+\coordinate (r2) at ($(add1.north)!0.5!(n2.south)$);
+\draw[->, thick, blue!50!black] (r2) -- ++(-3.4,0) |- (add2.west);
+
+% tied weights
+\draw[dotted, thick, ->] (emb.east) -- ++(0.75,0) |- node[pos=0.25, right, font=\footnotesize, align=left] {same\\matrix} (head.east);
+
+% ---------------- GQA panel ----------------
+\begin{scope}[xshift=8.3cm, yshift=3.2cm]
+  \node[font=\bfseries\small] at (1.95,2.25) {Grouped-query attention};
+  \foreach \i in {0,...,8} {
+    \pgfmathsetmacro{\g}{int(\i/3)}
+    \ifcase\g \def\c{blue!25}\or \def\c{orange!30}\or \def\c{teal!25}\fi
+    \node[draw, minimum size=4.6mm, fill=\c, font=\scriptsize] (q\i) at (\i*0.49,1.25) {$q_{\i}$};
+  }
+  \foreach \j in {0,1,2} {
+    \ifcase\j \def\c{blue!25}\or \def\c{orange!30}\or \def\c{teal!25}\fi
+    \node[draw, minimum width=1.25cm, minimum height=4.6mm, fill=\c, font=\scriptsize] (kv\j) at (\j*1.47+0.49,0) {$k_{\j}, v_{\j}$};
+    \pgfmathtruncatemacro{\a}{3*\j}\pgfmathtruncatemacro{\b}{3*\j+1}\pgfmathtruncatemacro{\cc}{3*\j+2}
+    \draw (q\a.south) -- (kv\j.north); \draw (q\b.south) -- (kv\j.north); \draw (q\cc.south) -- (kv\j.north);
+  }
+  \node[font=\footnotesize, align=left, anchor=north west] at (-0.3,-0.5) {9 query heads read 3 shared\\key/value heads (3 each):\\the KV cache is $3\times$ smaller.};
+  \node[font=\footnotesize, anchor=north west] at (-0.3,-2.0) {%
+    \begin{tabular}{@{}lr@{}}
+    \multicolumn{2}{@{}l}{\textbf{Parameters}}\\
+    embedding (tied) & 18.87M\\
+    attention $\times$30 & 26.54M\\
+    SwiGLU $\times$30 & 79.63M\\
+    RMSNorm gains & 0.04M\\
+    \hline
+    total & 125.08M
+    \end{tabular}};
+\end{scope}
+\end{tikzpicture}

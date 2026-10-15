@@ -10,6 +10,8 @@
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
 \usepackage[numbers,sort&compress]{natbib}
 \usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
 
@@ -41,6 +43,13 @@ To answer it credibly, the system is built without any pretrained weights, pretr
   \item Evidence that a 4.5B-token model trained on a deliberate web+SQL mix comes within about one point of GPT-2 and well above Pythia-160M at this task, and that constrained decoding helps weaker models more without ever hurting ours.
   \item Ablations of four design choices (Section~\ref{sec:ablations}), a failure analysis, and a hand audit of aggregation labels (Section~\ref{sec:failures}).
 \end{itemize}
+
+\begin{figure}[!htbp]
+\centering
+\resizebox{\linewidth}{!}{\input{figures/pipeline.tex}}
+\caption{The TinySQL pipeline. Every stage is implemented in this project; pretrained weights and tokenizers are used only for the baselines.}
+\label{fig:pipeline}
+\end{figure}
 
 \section{Related work}
 
@@ -81,7 +90,14 @@ Parameters & 125,077,824 \\
 \label{tab:arch}
 \end{table}
 
-Table~\ref{tab:arch} gives the architecture. Weights are initialised from $\mathcal{N}(0, 0.02)$ with residual output projections scaled by $1/\sqrt{2L}$. The loss is a custom autograd function that stores only the logits and one log-sum-exp per token, which was needed to fit micro-batches of 8$\times$2048 tokens with a 32,768-way output on a 24\,GB GPU.
+\begin{figure}[!htbp]
+\centering
+\resizebox{0.97\linewidth}{!}{\input{figures/arch.tex}}
+\caption{TinySQL-125M. Left: a Llama-style pre-norm decoder with 30 blocks (blue lines: residual connections); the output head reuses the embedding matrix. Right: grouped-query attention, where each of the 3 key/value heads serves 3 query heads, and the parameter budget by component.}
+\label{fig:arch}
+\end{figure}
+
+Table~\ref{tab:arch} and Figure~\ref{fig:arch} give the architecture. Weights are initialised from $\mathcal{N}(0, 0.02)$ with residual output projections scaled by $1/\sqrt{2L}$. The loss is a custom autograd function that stores only the logits and one log-sum-exp per token, which was needed to fit micro-batches of 8$\times$2048 tokens with a 32,768-way output on a 24\,GB GPU.
 
 \subsection{Pretraining data}
 
@@ -111,11 +127,18 @@ Table~\ref{tab:data} lists the sources. The pipeline applies per-source quality 
 \subsection{Pretraining}
 \label{sec:pretrain}
 
-We train with our own AdamW~\cite{loshchilov2019adamw} ($\beta = (0.9, 0.95)$, weight decay 0.1 on weight matrices only), gradient clipping at 1.0, bf16 autocast and \texttt{torch.compile}. The peak learning rate of $1.2\times10^{-3}$ comes from a sweep on a 25M-parameter proxy (optimum near $1.4$--$1.5\times10^{-3}$, lowered for the larger model and longer run), with 200 warmup steps and cosine decay to 10\%. Each step is 524,288 tokens; the run is 8,600 steps, i.e.\ 4.51B tokens or about $3.4\times10^{18}$ FLOPs, roughly 1.8$\times$ the compute-optimal token count for this size~\cite{hoffmann2022chinchilla}. Data is mixed in two phases: 82/15/2.5/0.5\% (web/SQL/Stack Exchange/Gretel) for the first 85\% of steps, then 54/36/8/2\% while the learning rate decays.
+We train with our own AdamW~\cite{loshchilov2019adamw} ($\beta = (0.9, 0.95)$, weight decay 0.1 on weight matrices only), gradient clipping at 1.0, bf16 autocast and \texttt{torch.compile}. The peak learning rate of $1.2\times10^{-3}$ comes from a sweep on a 25M-parameter proxy (optimum near $1.4$--$1.5\times10^{-3}$, lowered for the larger model and longer run), with 200 warmup steps and cosine decay to 10\%. Each step is 524,288 tokens; the run is 8,600 steps, i.e.\ 4.51B tokens or about $3.4\times10^{18}$ FLOPs, roughly 1.8$\times$ the compute-optimal token count for this size~\cite{hoffmann2022chinchilla}. Data is mixed in two phases (Figure~\ref{fig:mix}): 82/15/2.5/0.5\% (web/SQL/Stack Exchange/Gretel) for the first 85\% of steps, then 54/36/8/2\% while the learning rate decays, so the specialised data is concentrated where the learning rate is low.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.85\linewidth]{data_mix.png}
+\caption{Pretraining data mix: share of sampled tokens per source over the run. Sources are sampled at training time from fixed shards, so the mix can change without re-tokenising.}
+\label{fig:mix}
+\end{figure}
 
 The run took about 46 hours on one NVIDIA L4 at 27k tokens/s (about 17\% model FLOPs utilisation), with zero skipped steps. Final validation loss is 2.94 nats/token on FineWeb-Edu and 0.96 on SQL code; every source improved at every checkpoint (Figure~\ref{fig:loss}).
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.8\linewidth]{loss_curves.png}
 \caption{Pretraining loss curves. The drop in training loss at the mix switch (step 7,310) reflects the easier SQL-heavy mix and was predicted from the per-source losses beforehand.}
@@ -132,7 +155,14 @@ Each WikiSQL example becomes a prompt with the table schema as a \texttt{CREATE 
 \end{lstlisting}
 Fine-tuning uses batch 32, 100 warmup steps, cosine decay, no weight decay and 3 epochs (5,283 steps, about 30 minutes on the L4). After each epoch, execution accuracy is measured on the first 1,000 dev questions and the best epoch is kept.
 
-\paragraph{Constrained decoding.} Two facts about WikiSQL motivate it. 95\% of our model's invalid greedy outputs reference a column that does not exist, and 100\% of gold condition values (11,545 of 11,545 on dev) occur verbatim, ignoring case, in the question. We therefore define two levels. \emph{Schema} is a byte-level grammar for the WikiSQL query shape that only admits the table's real column names. \emph{Schema + values} additionally requires every condition value to be a substring of the question (Unicode-aware, valid UTF-8). At each step, candidate tokens are checked best-first and the first that keeps the output a valid prefix is taken, which is equivalent to masking every invalid token and taking the argmax. The same decoder runs on the baselines through a byte-level adapter for their tokenizers.
+\paragraph{Constrained decoding.} Two facts about WikiSQL motivate it. 95\% of our model's invalid greedy outputs reference a column that does not exist, and 100\% of gold condition values (11,545 of 11,545 on dev) occur verbatim, ignoring case, in the question. We therefore define two levels. \emph{Schema} is a byte-level grammar for the WikiSQL query shape that only admits the table's real column names. \emph{Schema + values} additionally requires every condition value to be a substring of the question (Unicode-aware, valid UTF-8). At each step, candidate tokens are checked best-first and the first that keeps the output a valid prefix is taken, which is equivalent to masking every invalid token and taking the argmax (Figure~\ref{fig:constrained}). The same decoder runs on the baselines through a byte-level adapter for their tokenizers.
+
+\begin{figure}[!htbp]
+\centering
+\resizebox{0.95\linewidth}{!}{\input{figures/constrained.tex}}
+\caption{Constrained decoding on a WikiSQL dev question (candidate tokens are illustrative). Candidates are tried left to right in model-score order: red ones would leave the grammar and are skipped, green is the first valid one. Checking is lazy, so usually only a few candidates are tested; the result equals masking every invalid token and taking the argmax.}
+\label{fig:constrained}
+\end{figure}
 
 \section{Experimental setup}
 \label{sec:setup}
@@ -141,10 +171,17 @@ Fine-tuning uses batch 32, 100 warmup steps, cosine decay, no weight decay and 3
 
 \paragraph{Protocol.}
 \begin{enumerate}
-  \item \textbf{Learning rate}, per model, from $\{5\times10^{-5}, 10^{-4}, 2\times10^{-4}\}$ (control: $\{10^{-4}, 10^{-3}\}$), chosen on the first 1,000 dev questions (Table~\ref{tab:lr} in the appendix).
+  \item \textbf{Learning rate}, per model, from $\{5\times10^{-5}, 10^{-4}, 2\times10^{-4}\}$ (control: $\{10^{-4}, 10^{-3}\}$), chosen on the first 1,000 dev questions (Figure~\ref{fig:lr}; Table~\ref{tab:lr} in the appendix).
   \item \textbf{Seeds:} three for TinySQL and both SmolLM2 models; one for GPT-2, Pythia and the control.
   \item \textbf{Test set, once:} the dev-phase weights had been deleted after scoring, so every system was fine-tuned again with its dev-chosen configuration and scored on test exactly once. No decision was made after seeing a test number.
 \end{enumerate}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.7\linewidth]{lr_sweep.png}
+\caption{Fine-tuning learning-rate sweep, seed 0. Every model gets its own best learning rate; $2\times10^{-4}$ is too high for all of them.}
+\label{fig:lr}
+\end{figure}
 
 \paragraph{Metrics.} Our main metric is execution accuracy: the predicted and gold queries are executed on the table, in a sandboxed read-only SQLite connection, and their results compared. We also run Salesforce's official WikiSQL evaluator, unmodified, which reports execution and logical-form accuracy. Fed the gold queries as predictions, it scores exactly 100\% on dev and test, and its execution accuracy agrees with ours within 0.11 points on every run of the four main systems.
 
@@ -203,7 +240,7 @@ Table~\ref{tab:main} gives test accuracy and Table~\ref{tab:paired} the paired c
   \item \textbf{Results are stable.} Seed standard deviations are 0.1--0.4 points, far smaller than every gap between models. Our dev-to-test drop is 0.7 points, similar to the baselines' 0.4--0.5 (Pythia, whose fine-tuning is unstable, drops 5 points).
 \end{enumerate}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.8\linewidth]{accuracy_vs_tokens_test.png}
 \caption{Test execution accuracy (greedy, 95\% CI) against pretraining tokens. GPT-2's token count is not published, so it is drawn as a reference line, as is our no-pretraining control.}
@@ -231,7 +268,14 @@ No pretraining & -- & +10.94 & 1755 / 18 \\
 \label{tab:constrained}
 \end{table}
 
-Constraints raise validity to 100\% for every model and help weaker models more (Table~\ref{tab:constrained}). The value constraint is worth more than the schema constraint for every model: copying filter values exactly is where small models slip most. For our model, constrained decoding \emph{never} turned a correct answer into a wrong one in any paired comparison we ran (0 broken on test at both levels; 0 on dev). For every baseline it sometimes does, plausibly because their tokenizers can be forced into token splits they rarely produce; we did not verify this.
+Constraints raise validity to 100\% for every model and help weaker models more (Table~\ref{tab:constrained}, Figure~\ref{fig:gains}).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{decoding_gains.png}
+\caption{Test accuracy with greedy decoding (open circle), the schema constraint (square) and schema + values (filled circle); mean over seeds where available. The gain shrinks as the model gets stronger.}
+\label{fig:gains}
+\end{figure} The value constraint is worth more than the schema constraint for every model: copying filter values exactly is where small models slip most. For our model, constrained decoding \emph{never} turned a correct answer into a wrong one in any paired comparison we ran (0 broken on test at both levels; 0 on dev). For every baseline it sometimes does, plausibly because their tokenizers can be forced into token splits they rarely produce; we did not verify this.
 
 \subsection{Ablations}
 \label{sec:ablations}
@@ -254,12 +298,19 @@ Web text only (no SQL, code or Q\&A) & 25.2M & 54.89 & $-$0.94 & 0.021 \\
 \label{tab:ablations}
 \end{table}
 
-Table~\ref{tab:ablations} varies one design choice at a time on a small proxy model. Rotary embeddings matter most: without them, accuracy drops 8.5 points and pretraining loss is clearly worse (4.51 vs 4.09 nats on web text). Tying embeddings helps by 5 points even though the untied model has 50\% more parameters. Grouped-query attention costs nothing measurable while shrinking the KV cache 3$\times$. Most surprisingly, removing all SQL, code and Q\&A data from pretraining costs only 0.9 points after fine-tuning, even though the web-only model's loss on SQL code is far higher (4.40 vs 1.81 nats). Fine-tuning on 56k WikiSQL examples appears to recover most of what the SQL data teaches. These are single-seed results at 150M tokens, so we treat them as indicative.
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{ablations.png}
+\caption{Ablations on the 25M proxy (dev, greedy, 95\% CI).}
+\label{fig:ablations}
+\end{figure}
+
+Table~\ref{tab:ablations} and Figure~\ref{fig:ablations} vary one design choice at a time on a small proxy model. Rotary embeddings matter most: without them, accuracy drops 8.5 points and pretraining loss is clearly worse (4.51 vs 4.09 nats on web text). Tying embeddings helps by 5 points even though the untied model has 50\% more parameters. Grouped-query attention costs nothing measurable while shrinking the KV cache 3$\times$. Most surprisingly, removing all SQL, code and Q\&A data from pretraining costs only 0.9 points after fine-tuning, even though the web-only model's loss on SQL code is far higher (4.40 vs 1.81 nats). Fine-tuning on 56k WikiSQL examples appears to recover most of what the SQL data teaches. These are single-seed results at 150M tokens, so we treat them as indicative.
 
 \subsection{Failure analysis}
 \label{sec:failures}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.85\linewidth]{failure_categories_test.png}
 \caption{Where wrong answers come from (test, greedy, seed 0). Each wrong prediction is parsed into WikiSQL's structured form and assigned exactly one category.}
@@ -267,6 +318,15 @@ Table~\ref{tab:ablations} varies one design choice at a time on a small proxy mo
 \end{figure}
 
 Each wrong prediction is parsed back into WikiSQL's structure (selected column, aggregation, conditions) and compared with gold, giving exactly one category (Figure~\ref{fig:failures}). Compared with stronger models, our model loses most on condition columns, values and multi-part errors, the skills that depend on reading the table and the question. Aggregation errors are different: they stay at 3.8--4.3\% of test questions for every pretrained model, although overall accuracy spans 26 points.
+
+\paragraph{Query complexity.} Accuracy falls as the gold query needs more conditions (Figure~\ref{fig:conds}). On the 10,832 test questions with a single condition, our model and GPT-2 are level (80.3\% and 80.2\%, seed 0). The gap between them opens with two conditions (73.5\% vs 76.2\% on 3,879 questions), which matches the multi-part errors in Figure~\ref{fig:failures}. Pythia falls fastest, from 64.5\% to 35.8\% at four conditions.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.7\linewidth]{accuracy_by_conditions.png}
+\caption{Test accuracy by the number of WHERE conditions in the gold query (greedy, seed 0). The 131 questions without conditions are omitted.}
+\label{fig:conds}
+\end{figure}
 
 \paragraph{Aggregation label audit.} To find out why, we hand-checked 50 randomly sampled dev questions where our model was wrong \emph{only} in the aggregation. In 31 (62\%; 95\% Wilson CI~\cite{wilson1927} 48--74\%) the gold aggregation is not supported by the question. For example, ``How many people were in the crowd when Essendon was the home team?'' is labelled \texttt{COUNT(Crowd)} rather than the crowd figure, and ``For record 25-24, what is the sum of attendance?'' is labelled \texttt{COUNT}. A further 12 (24\%) are ambiguous, and only 7 (14\%) are clear model errors. Extrapolated, roughly 2 points of dev accuracy are lost to aggregation labels for every model, which is consistent with earlier reports of annotation errors in WikiSQL~\cite{hwang2019sqlova,pihulski2025llmsql}. The audit had a single annotator (the author), not blinded; all 50 judgements are released for re-checking.
 

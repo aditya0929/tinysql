@@ -1,0 +1,104 @@
+{
+ "TinySQL-125M (ours)": {
+  "n": 15878,
+  "wrong": 3491,
+  "categories": {
+   "invalid": 312,
+   "select column": 260,
+   "aggregation": 627,
+   "condition column": 750,
+   "operator": 73,
+   "value": 562,
+   "missing condition": 38,
+   "extra condition": 57,
+   "multiple": 731,
+   "other": 81
+  },
+  "right_but_structurally_different": 902
+ },
+ "SmolLM2-135M": {
+  "n": 15878,
+  "wrong": 2830,
+  "categories": {
+   "invalid": 214,
+   "select column": 149,
+   "aggregation": 627,
+   "condition column": 539,
+   "operator": 62,
+   "value": 583,
+   "missing condition": 22,
+   "extra condition": 54,
+   "multiple": 556,
+   "other": 24
+  },
+  "right_but_structurally_different": 818
+ },
+ "SmolLM2-360M": {
+  "n": 15878,
+  "wrong": 2031,
+  "categories": {
+   "invalid": 70,
+   "select column": 133,
+   "aggregation": 606,
+   "condition column": 356,
+   "operator": 59,
+   "value": 334,
+   "missing condition": 31,
+   "extra condition": 38,
+   "multiple": 368,
+   "other": 36
+  },
+  "right_but_structurally_different": 849
+ },
+ "GPT-2 124M": {
+  "n": 15878,
+  "wrong": 3346,
+  "categories": {
+   "invalid": 275,
+   "select column": 181,
+   "aggregation": 686,
+   "condition column": 581,
+   "operator": 65,
+   "value": 743,
+   "missing condition": 45,
+   "extra condition": 59,
+   "multiple": 666,
+   "other": 45
+  },
+  "right_but_structurally_different": 900
+ },
+ "Pythia-160M": {
+  "n": 15878,
+  "wrong": 6227,
+  "categories": {
+   "invalid": 1344,
+   "select column": 295,
+   "aggregation": 668,
+   "condition column": 1232,
+   "operator": 56,
+   "value": 1026,
+   "missing condition": 119,
+   "extra condition": 37,
+   "multiple": 1425,
+   "other": 25
+  },
+  "right_but_structurally_different": 921
+ },
+ "No pretraining (ours, random init)": {
+  "n": 15878,
+  "wrong": 9941,
+  "categories": {
+   "invalid": 3382,
+   "select column": 268,
+   "aggregation": 278,
+   "condition column": 892,
+   "operator": 49,
+   "value": 2833,
+   "missing condition": 46,
+   "extra condition": 18,
+   "multiple": 2175,
+   "other": 0
+  },
+  "right_but_structurally_different": 931
+ }
+}

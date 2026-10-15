@@ -682,3 +682,41 @@ Gains from constrained decoding, in points, always against greedy from the same 
 | Pythia greedy moved from 64.48 to 65.94 after its re-fine-tune | GPU fine-tuning is not bit-reproducible, even with the same seed | report the rerun, so all three decodings come from the same weights |
 
 Figures: `docs/figures/accuracy_vs_tokens.png`, `docs/figures/failure_categories.png`, `docs/figures/ablations.png`.
+
+## 17. Test set (WikiSQL test, 15,878 questions, evaluated once)
+
+The dev-phase weights had been deleted after scoring, so `scripts/benchmark_queue.py --test` fine-tuned every system again with exactly the configuration chosen on dev (16.1). It then scored each one on test, and the weights were kept this time. Nothing was selected or changed after seeing test numbers. It ran from 2026-10-14 11:09 to 2026-10-15 07:25 UTC, about 19 GPU-hours. Two of our schema + values evaluations ran out of memory next to a fine-tune; they were rerun on the kept weights, and the queue now starts a fine-tune only when no evaluation is running. Results are in `results/benchmark_test.json` and `results/failures_test.json` (`python -m scripts.analyse_dev --split test`).
+
+| Model | Seeds | Greedy | + Schema | + Schema + values | Dev greedy (16.2) |
+|---|---|---|---|---|---|
+| **TinySQL-125M (ours)** | 3 | **77.95 ± 0.18** [77.4, 78.5] | 79.06 | **80.39 ± 0.20** [79.8, 81.0] | 78.63 |
+| GPT-2 124M | 1 | 78.93 [78.3, 79.6] | 80.07 | 82.36 [81.8, 82.9] | 79.41 |
+| Pythia-160M | 1 | 60.78 [60.0, 61.5] | 63.98 | 67.63 [66.9, 68.4] | 65.94 |
+| SmolLM2-135M | 3 | 82.57 ± 0.37 [82.0, 83.1] | 83.16 | 85.22 ± 0.21 [84.7, 85.7] | 82.97 |
+| SmolLM2-360M | 3 | 87.03 ± 0.19 [86.6, 87.5] | 87.42 | 88.01 ± 0.12 [87.6, 88.5] | 87.40 |
+| No pretraining | 1 | 37.39 [36.7, 38.1] | – | 48.33 [47.5, 49.1] | 37.70 |
+
+Execution accuracy in %. Schema-only uses seed 0 and the same weights as its greedy run.
+
+Paired against ours (seed 0):
+
+| Comparison | Greedy | Discordant | p (McNemar) | Schema + values | p |
+|---|---|---|---|---|---|
+| SmolLM2-360M − ours | +9.20 [+8.6, +9.8] | 1940 / 480 | 6e-207 | +7.71 | 4e-173 |
+| SmolLM2-135M − ours | +4.16 [+3.6, +4.8] | 1532 / 871 | 8e-42 | +4.55 | 4e-59 |
+| GPT-2 − ours | **+0.91 [+0.3, +1.5]** | 1287 / 1142 | **0.0035** | +1.92 | 7e-12 |
+| Pythia-160M − ours | −17.23 | 647 / 3383 | < 1e-300 | −12.80 | 2e-288 |
+| ours − no pretraining | +40.62 | 6704 / 254 | < 1e-300 | | |
+
+Constraint gains on test (same weights): ours +1.05 (schema), fixing 166 questions and breaking **0**, and +2.42 (schema + values), fixing 385 and breaking **0**. GPT-2: +1.14 / +3.43 (121 / 114 broken). Pythia: +3.19 / +6.85. SmolLM2-135M: +0.98 / +2.81. SmolLM2-360M: +0.21 / +0.94. No pretraining: +10.94.
+
+**What changes from dev, and what holds:**
+1. **GPT-2 is slightly but significantly ahead on test** at greedy (+0.9 points, p = 0.004), where on dev the gap (+0.5) was not significant. The honest summary: GPT-2 is about 1 point better at greedy and 2 points better with constraints. Our model matches neither GPT-2 nor the SmolLM2 models, and it comes within about 1 point of GPT-2 with a known 4.5B-token pretraining budget.
+2. **Everything else replicates on independent re-fine-tunes:**
+   - Pretraining is worth about 41 points.
+   - SmolLM2-135M is about 4.2 to 4.6 ahead, and SmolLM2-360M about 7.7 to 9.2 ahead.
+   - Constraints help weaker models more.
+   - Our model is never hurt by constraints: 0 questions broken on test, as on dev.
+   - Seed std stays at 0.1 to 0.4.
+3. **Our dev-to-test drop is small** (78.63 → 77.95), similar to the baselines (0.3 to 0.7). Model selection on dev did not overfit.
+4. **Pythia is the exception:** 65.9 on dev but 60.8 on test, on different re-fine-tunes. Its fine-tuning is unstable (gradient norms in the thousands early on; LR 2e-4 collapsed on the sweep), so a single seed is noisy for Pythia. Its rank (last among pretrained models) is unchanged.

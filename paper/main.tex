@@ -17,7 +17,7 @@
 \lstset{basicstyle=\ttfamily\small,breaklines=true,columns=fullflexible,frame=single,framerule=0.3pt}
 \newcommand{\pmstd}[2]{#1{\scriptsize$\,\pm\,$#2}}
 
-\title{\textbf{TinySQL: A 125M-Parameter Text-to-SQL Language Model\\Built and Pretrained From Scratch on 4.5B Tokens}}
+\title{\textbf{TinySQL: A 125M-Parameter Text-to-SQL Model\\Built and Pretrained From Scratch on 4.5B Tokens}}
 \author{Aditya Jha\\Independent Researcher\\\url{https://github.com/aditya0929/tinysql}}
 \date{October 2026}
 
@@ -36,7 +36,7 @@ To answer it credibly, the system is built without any pretrained weights, pretr
 
 \paragraph{Contributions.}
 \begin{itemize}
-  \item A complete, tested, from-scratch text-to-SQL stack: tokenizer, Llama-style model~\cite{touvron2023llama}, optimizer, data pipeline with deduplication and benchmark decontamination, grammar-constrained decoder, and evaluation (Section~\ref{sec:system}).
+  \item A complete, tested, from-scratch text-to-SQL stack: tokenizer, Llama-style model~\cite{touvron2023llama}, optimizer, a data pipeline with deduplication and benchmark decontamination, a grammar-constrained decoder, and evaluation code (Section~\ref{sec:system}).
   \item A controlled comparison on WikiSQL~\cite{zhong2017seq2sql} against four public models of similar size, with learning-rate sweeps, three seeds, a no-pretraining control, bootstrap confidence intervals and McNemar tests (Section~\ref{sec:results}).
   \item Evidence that a 4.5B-token model trained on a deliberate web+SQL mix comes within about one point of GPT-2 and well above Pythia-160M at this task, and that constrained decoding helps weaker models more without ever hurting ours.
   \item Ablations of four design choices (Section~\ref{sec:ablations}), a failure analysis, and a hand audit of aggregation labels (Section~\ref{sec:failures}).
@@ -160,15 +160,15 @@ Fine-tuning uses batch 32, 100 warmup steps, cosine decay, no weight decay and 3
 \small
 \begin{tabular}{lrcccc}
 \toprule
-Model & Pretraining tokens & Seeds & Greedy & + Schema & + Schema + values \\
+Model & \shortstack[r]{Pretraining\\tokens} & Seeds & Greedy & + Schema & \shortstack{+ Schema\\+ values} \\
 \midrule
 \textbf{TinySQL-125M (ours)} & \textbf{4.5B} & 3 & \textbf{\pmstd{77.95}{0.18}} & 79.06 & \textbf{\pmstd{80.39}{0.20}} \\
-GPT-2 124M & not published & 1 & 78.93 & 80.07 & 82.36 \\
+GPT-2 124M & unknown & 1 & 78.93 & 80.07 & 82.36 \\
 Pythia-160M & 300B & 1 & 60.78 & 63.98 & 67.63 \\
 SmolLM2-135M & 2T & 3 & \pmstd{82.57}{0.37} & 83.16 & \pmstd{85.22}{0.21} \\
 SmolLM2-360M & 4T & 3 & \pmstd{87.03}{0.19} & 87.42 & \pmstd{88.01}{0.12} \\
 \midrule
-Our architecture, no pretraining & 0 & 1 & 37.39 & -- & 48.33 \\
+Ours, no pretraining & 0 & 1 & 37.39 & -- & 48.33 \\
 \bottomrule
 \end{tabular}
 \caption{WikiSQL \textbf{test} execution accuracy (\%, 15,878 questions). Mean $\pm$ std over seeds; schema-only uses seed 0. 95\% bootstrap CIs are $\pm$0.5 to 0.8 points (Table~\ref{tab:official} and the repository). Dev results (Table~\ref{tab:dev}) agree closely.}

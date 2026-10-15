@@ -160,10 +160,10 @@ class Queue:
         else:
             cmd = [sys.executable, "-m", "eval.baselines.finetune_hf", "--model", MODELS[model], "--out", out,
                    "--peak_lr", str(lr), "--seed", str(seed)]
-        # background evaluations hold 2-3 GB each: a fine-tune next to three of them ran out of memory, next to one fits
-        while not self.done(f"ft:{job}") and len([p for p in self.background if p[1].poll() is None]) > 1:
-            time.sleep(20)
-        self.reap()
+        # background evaluations hold 2-3 GB each, and our compiled fine-tune reserves ~20 GB of the 22 GB GPU: an
+        # evaluation running next to a fine-tune ran out of memory, so a fine-tune starts only once all have finished
+        if not self.done(f"ft:{job}"):
+            self.reap(wait=True)
         ok = self.step(f"ft:{job}", cmd)
         self.upload(job)
         return ok

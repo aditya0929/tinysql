@@ -7,7 +7,7 @@
 | Resource type | Publication → Report |
 | Title | TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens |
 | Publication date | 2026-10-15 |
-| Creator | Jha, Aditya. Affiliation: Coherent Market Insights. Role (if asked): AI Engineer. Add your ORCID iD if you have one. |
+| Creator | Jha, Aditya. Leave the affiliation empty (a job title is not an organisation). Add your ORCID iD if you have one. |
 | License | Creative Commons Attribution 4.0 International (CC BY 4.0) |
 | Version | v1.0 |
 | Language | English |

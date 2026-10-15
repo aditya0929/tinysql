@@ -275,7 +275,9 @@ Constraints raise validity to 100\% for every model and help weaker models more 
 \includegraphics[width=0.8\linewidth]{decoding_gains.png}
 \caption{\textbf{Gains from constrained decoding:} test accuracy with greedy decoding (open circle), the schema constraint (square) and schema + values (filled circle); mean over seeds where available. The gain shrinks as the model gets stronger.}
 \label{fig:gains}
-\end{figure} The value constraint is worth more than the schema constraint for every model: copying filter values exactly is where small models slip most. For our model, constrained decoding \emph{never} turned a correct answer into a wrong one in any paired comparison we ran (0 broken on test at both levels; 0 on dev). For every baseline it sometimes does, plausibly because their tokenizers can be forced into token splits they rarely produce; we did not verify this.
+\end{figure}
+
+The value constraint is worth more than the schema constraint for every model: copying filter values exactly is where small models slip most. For our model, constrained decoding \emph{never} turned a correct answer into a wrong one in any paired comparison we ran (0 broken on test at both levels; 0 on dev). For every baseline it sometimes does, plausibly because their tokenizers can be forced into token splits they rarely produce; we did not verify this.
 
 \subsection{Ablations}
 \label{sec:ablations}

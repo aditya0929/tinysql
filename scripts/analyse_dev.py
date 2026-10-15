@@ -1,4 +1,4 @@
-"""Statistics and failure analysis for every benchmark system on WikiSQL dev (8,421 questions).
+"""Statistics and failure analysis for every benchmark system on WikiSQL dev (8,421 questions) or test (15,878).
 
 Reads the prediction files written by scripts/benchmark_queue.py (downloaded to runs_local/benchmark/) and, for the
 schema-only decoding of the three main models, the earlier full runs (runs_local/rescored, runs_local/baselines). All were
@@ -8,10 +8,11 @@ Per system and decoding: accuracy of each seed, mean and std over seeds, and a 9
 seed-averaged accuracy (each question counts as the fraction of seeds that got it right). Paired tests (paired bootstrap
 and exact McNemar) compare seed-0 predictions question by question. Failure categories use seed 0, greedy.
 
-Writes results/benchmark_dev.json and results/failures_dev.json.
+Writes results/benchmark_<split>.json and results/failures_<split>.json.
 
-    python -m scripts.analyse_dev
+    python -m scripts.analyse_dev [--split test]
 """
+import argparse
 import json
 from pathlib import Path
 
@@ -46,6 +47,18 @@ SAME_WEIGHTS_GREEDY = {
 }
 ABLATIONS = ["base", "learned_pos", "mha", "untied", "general_only"]          # 25M proxy, greedy, 1 seed
 
+# Test: every system re-fine-tuned at its dev-chosen LR (scripts/benchmark_queue.py --test); schema-only always shares
+# weights with greedy seed 0, so no special pairing is needed. No ablations on test.
+T = Path("runs_local/test")
+_JOBS = {"TinySQL-125M (ours)": ("tinysql_lr5e-05", 3, ("greedy", "schema", "values")),
+         "SmolLM2-135M": ("smollm2-135m_lr0.0001", 3, ("greedy", "schema", "values")),
+         "SmolLM2-360M": ("smollm2-360m_lr5e-05", 3, ("greedy", "schema", "values")),
+         "GPT-2 124M": ("gpt2_lr0.0001", 1, ("greedy", "schema", "values")),
+         "Pythia-160M": ("pythia-160m_lr0.0001", 1, ("greedy", "schema", "values")),
+         "No pretraining (ours, random init)": ("control_lr0.0001", 1, ("greedy", "values"))}
+TEST_SYSTEMS = {name: {d: [T / f"{job}_s{s}/test_{d}_predictions.jsonl" for s in range(seeds if d != "schema" else 1)]
+                       for d in decs} for name, (job, seeds, decs) in _JOBS.items()}
+
 
 def load(path, items):
     recs = [json.loads(l) for l in open(path, encoding="utf-8")]
@@ -54,10 +67,14 @@ def load(path, items):
 
 
 def main():
-    items, tables = load_split("dev")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--split", default="dev", choices=["dev", "test"])
+    split = ap.parse_args().split
+    systems, same_weights, ablations = ((SYSTEMS, SAME_WEIGHTS_GREEDY, ABLATIONS) if split == "dev" else (TEST_SYSTEMS, {}, []))
+    items, tables = load_split(split)
     n = len(items)
     out, seed0, failures = {"n": n, "systems": {}, "ablations": {}, "pairwise": {}}, {}, {}
-    for name, decs in SYSTEMS.items():
+    for name, decs in systems.items():
         out["systems"][name] = {}
         for dec, paths in decs.items():
             runs = [[int(r["correct"]) for r in load(p, items)] for p in paths]
@@ -71,7 +88,7 @@ def main():
         recs = load(decs["greedy"][0], items)
         failures[name], _ = analyse(recs, items, tables)
 
-    for a in ABLATIONS:
+    for a in ablations:
         recs = load(B / f"abl_{a}/dev_greedy_predictions.jsonl", items)
         c = [int(r["correct"]) for r in recs]
         acc, lo, hi = bootstrap_ci(c)
@@ -88,15 +105,15 @@ def main():
         for dec in ("greedy", "values"):
             pairs.append((f"{b} / {dec}", f"{ours} / {dec}"))
     pairs.append((f"{ours} / greedy", "No pretraining (ours, random init) / greedy"))
-    for name, path in SAME_WEIGHTS_GREEDY.items():
+    for name, path in same_weights.items():
         seed0[f"{name} / greedy (LR 1e-4 run)"] = [int(r["correct"]) for r in load(path, items)]
-    for name, decs in SYSTEMS.items():
+    for name, decs in systems.items():
         for dec in decs:
-            if dec == "schema" and name in SAME_WEIGHTS_GREEDY:
+            if dec == "schema" and name in same_weights:
                 pairs.append((f"{name} / {dec}", f"{name} / greedy (LR 1e-4 run)"))
             elif dec != "greedy":
                 pairs.append((f"{name} / {dec}", f"{name} / greedy"))
-    pairs += [(f"ablation base", f"ablation {a}") for a in ABLATIONS[1:]]
+    pairs += [(f"ablation base", f"ablation {a}") for a in ablations[1:]]
     for a, b in pairs:
         d, lo, hi, p = paired_bootstrap(seed0[a], seed0[b])
         oa, ob, pm = mcnemar(seed0[a], seed0[b])
@@ -104,8 +121,8 @@ def main():
                                              "only_a": oa, "only_b": ob, "p_mcnemar": pm}
         print(f"{a:44s} vs {b:44s} {100 * d:+6.2f} [{100 * lo:+.2f}, {100 * hi:+.2f}]  {oa}/{ob}  p={pm:.2g}")
 
-    Path("results/benchmark_dev.json").write_text(json.dumps(out, indent=1))
-    Path("results/failures_dev.json").write_text(json.dumps(failures, indent=1))
+    Path(f"results/benchmark_{split}.json").write_text(json.dumps(out, indent=1))
+    Path(f"results/failures_{split}.json").write_text(json.dumps(failures, indent=1))
     for k, f in failures.items():
         print(f"{k:36s} wrong {f['wrong']:5d}", {c: v for c, v in f["categories"].items() if v})
 

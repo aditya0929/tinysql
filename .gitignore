@@ -21,3 +21,4 @@ logs/
 scratch/
 runs_local/
 data/wikisql_sft/
+release/

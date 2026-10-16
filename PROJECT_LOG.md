@@ -336,7 +336,7 @@ Pretraining on 4 to 5B tokens is well above the compute-optimal point (about 2.5
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pytest tests                          # 166 tests
+python -m pytest tests                          # 169 tests
 python -m data.download --dry-run               # list what would be downloaded
 python -m data.download                         # download all sources (about 17 GB)
 python -m data.clean                            # data/raw -> data/clean

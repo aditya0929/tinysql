@@ -31,13 +31,13 @@ Every model is fine-tuned with the identical recipe, after its own learning-rate
 | Schema- and value-constrained decoding | [`decode/`](decode/) |
 | Sandboxed SQL execution, statistics (bootstrap, McNemar), failure analysis | [`eval/`](eval/) |
 
-No pretrained weights, pretrained tokenizers or Hugging Face model classes are used in the model path. Hugging Face code is used only as a test oracle (our model reproduces a reference Llama's logits to within 1e-4), to download data, and to run the baselines. The 166 tests run with `python -m pytest tests`.
+No pretrained weights, pretrained tokenizers or Hugging Face model classes are used in the model path. Hugging Face code is used only as a test oracle (our model reproduces a reference Llama's logits to within 1e-4), to download data, and to run the baselines. The 169 tests run with `python -m pytest tests`.
 
 ## Reproduce
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests                                   # 166 tests
+python -m pytest tests                                   # 169 tests
 
 # data (about 17 GB download)
 python -m data.download

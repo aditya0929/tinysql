@@ -20,7 +20,7 @@ Last updated: 2026-10-15. Technical report published: DOI 10.5281/zenodo.2339677
 | H. Text-to-SQL fine-tuning | **done**: WikiSQL **test 77.95 ± 0.18%** greedy, **80.39 ± 0.20%** with schema + values constraints (3 seeds, section 17) |
 | I. Decoding (beam, constrained) | **constrained decoding done** (section 15): 100% validity, never breaks a correct answer of ours; beam search not done |
 | J. Benchmarking and failure analysis | **done**: GPT-2, Pythia-160M, SmolLM2-135M/360M with the same recipe, LR sweep, 3 seeds, no-pretraining control, CIs and paired tests, failure categories, aggregation-label audit, official evaluator on dev and test (sections 15 to 17) |
-| K. Demo, model card, README | not started |
+| K. Demo, model card, README | **model cards and README done; models on Hugging Face** (section 18); demo not started |
 | L. Technical report (Zenodo) | **published** 2026-10-15, DOI [10.5281/zenodo.23396770](https://doi.org/10.5281/zenodo.23396770) |
 
 Tests: **166 passing** (`python -m pytest tests`).
@@ -764,3 +764,19 @@ All 29 test prediction files were scored with Salesforce's unmodified `evaluate.
 - Within 0.11 points on every run of ours, GPT-2 and both SmolLM2 models.
 - Up to 0.40 points for Pythia and the no-pretraining model, the official evaluator being higher. Both produce many unusual outputs. A likely reason, not yet checked case by case, is that the official evaluator's value handling (case and number normalisation) is more lenient and counts a few more as correct.
 - No ranking or conclusion changes between the two scorers.
+
+## 18. Release on Hugging Face (2026-10-16)
+
+| Repo | Contents |
+|---|---|
+| [adiitya0929/TinySQL-125M-base](https://huggingface.co/adiitya0929/TinySQL-125M-base) | pretrained weights, step 8,600 (identical to `checkpoints/tinysql_125m_base.pt`) |
+| [adiitya0929/TinySQL-125M-WikiSQL](https://huggingface.co/adiitya0929/TinySQL-125M-WikiSQL) | the fine-tuned model behind the paper's test numbers (LR 5e-5, seed 0: 78.01 greedy, 80.44 constrained) |
+
+Both use the Apache-2.0 license and the standard `LlamaForCausalLM` format with a `tokenizers` tokenizer (`scripts/export_hf.py`). Training never used `transformers`; it appears only here, for distribution.
+
+**Exactness of the export:**
+- `tests/test_export_hf.py`: token ids identical on Unicode, SQL and special-token samples plus 300 random strings; decode identical; exported tiny model's logits within 1e-4 after reload.
+- `scripts/verify_hf_export.py`: all 48,598 WikiSQL dev+test prompt and gold-query strings tokenize identically. Greedy SQL from `AutoModelForCausalLM.generate()` equals our own generate loop on 300 of 300 dev questions (both 71.0% on this harder first-300 subset).
+- After upload, a fresh download from the Hub reproduced the model-card examples exactly.
+
+Model cards are in `hf/`; `scripts/upload_hf.py --user adiitya0929` reproduces the upload.

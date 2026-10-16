@@ -6,6 +6,20 @@ A 125M-parameter text-to-SQL language model in which every part of the model pat
 
 **Technical report:** [TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens](https://doi.org/10.5281/zenodo.23396770) (Zenodo, 2026). The PDF is also in [`paper/`](paper/TinySQL-technical-report-v1.pdf).
 
+**Models on Hugging Face** (Apache-2.0, load with plain `transformers`):
+[TinySQL-125M-WikiSQL](https://huggingface.co/adiitya0929/TinySQL-125M-WikiSQL) (text-to-SQL) ·
+[TinySQL-125M-base](https://huggingface.co/adiitya0929/TinySQL-125M-base) (pretrained base)
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+tok = AutoTokenizer.from_pretrained("adiitya0929/TinySQL-125M-WikiSQL")
+model = AutoModelForCausalLM.from_pretrained("adiitya0929/TinySQL-125M-WikiSQL")
+prompt = ('<schema>CREATE TABLE t ("Player" TEXT, "Position" TEXT, "School/Club Team" TEXT);</schema>\n'
+          '<question>What position does the player who played for butler cc (ks) play?</question>\n<sql>')
+ids = tok(prompt, return_tensors="pt").input_ids
+print(tok.decode(model.generate(ids, max_new_tokens=64)[0, ids.shape[1]:], skip_special_tokens=True))
+```
+
 ## Results (WikiSQL test, 15,878 questions, execution accuracy %)
 
 | Model | Pretraining tokens | Greedy | + Schema + values constraints |

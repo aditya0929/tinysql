@@ -1,5 +1,7 @@
 # TinySQL-125M
 
+## To see how it can be used you can follow the hyperlink - https://colab.research.google.com/drive/1MQ70s8txcYtgMd99cH_WHvYwgcmJd117?usp=sharing
+
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23396770.svg)](https://doi.org/10.5281/zenodo.23396770)
 
 A 125M-parameter text-to-SQL language model in which every part of the model path is written from scratch: the byte-level BPE tokenizer, the Llama-style transformer, the optimizer, the training loop, the data pipeline, a grammar-constrained decoder and the evaluation harness. It was pretrained for about 46 hours on one NVIDIA L4 GPU on 4.5B tokens of web text and SQL code, then fine-tuned on WikiSQL.

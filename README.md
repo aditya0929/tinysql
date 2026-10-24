@@ -6,6 +6,7 @@
 
 A 125M-parameter text-to-SQL language model in which every part of the model path is written from scratch: the byte-level BPE tokenizer, the Llama-style transformer, the optimizer, the training loop, the data pipeline, a grammar-constrained decoder and the evaluation harness. It was pretrained for about 46 hours on one NVIDIA L4 GPU on 4.5B tokens of web text and SQL code, then fine-tuned on WikiSQL.
 
+## my linkedin - https://www.linkedin.com/in/aditya-narayan-jha-36193a251/
 | | |
 |---|---|
 | **Paper** | [TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens](https://doi.org/10.5281/zenodo.23396770) (Zenodo, 2026, DOI 10.5281/zenodo.23396770). PDF also in [`paper/`](paper/TinySQL-technical-report-v1.pdf) |

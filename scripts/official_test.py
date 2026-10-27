@@ -1,9 +1,5 @@
 """Score every test prediction file with Salesforce's official WikiSQL evaluator (third_party/wikisql, unmodified).
 
-First a sanity check: the gold queries, passed as predictions, must score exactly 100% logical form and execution.
-Then for each system / decoding / seed: official execution and logical-form accuracy next to our executor's number.
-Writes results/wikisql_test_official.json.
-
     python -m scripts.official_test
 """
 import json

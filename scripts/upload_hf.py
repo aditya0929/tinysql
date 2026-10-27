@@ -1,12 +1,6 @@
 """Upload the exported models to the Hugging Face Hub, with their model cards.
 
-Log in first in your own terminal (the token never needs to be pasted anywhere else):
-    hf auth login            # or: huggingface-cli login
-
     python -m scripts.upload_hf --user YOUR_HF_USERNAME [--dry-run]
-
-Each release/<name>/ folder (from scripts/export_hf.py) gets hf/<name>/README.md with HF_USER replaced by the
-username, and is uploaded to <user>/<name>. Repos are created public; nothing is deleted on the Hub.
 """
 import argparse
 import shutil

@@ -1,16 +1,5 @@
 """Remove duplicate documents: data/clean/<source>/*.parquet -> data/dedup/<source>/*.parquet
 
-Step 1, exact: a document is dropped if its text hash was already seen (across all sources).
-Step 2, near (MinHash + LSH), for sources listed in --near (default: stack_sql, where GitHub forks and
-        copy-pasted scripts are everywhere):
-          shingle   every run of 5 word tokens -> a 32-bit hash
-          MinHash   128 hash functions; for each, keep the minimum over all shingles of the document.
-                    The fraction of equal slots between two signatures estimates their Jaccard similarity.
-          LSH       split the 128 slots into 16 bands of 8; documents sharing an entire band are candidates.
-                    P(candidate) = 1 - (1 - s^8)^16, which is ~0.5 at s = 0.7 and ~1 at s >= 0.85.
-          verify    a candidate pair is merged only if >= 80% of its slots agree.
-          keep      the longest document of each cluster.
-
     python -m data.dedup
 """
 import argparse

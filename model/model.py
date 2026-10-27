@@ -10,13 +10,7 @@ from model.rope import RotaryEmbedding
 
 
 class _CrossEntropy(torch.autograd.Function):
-    """Memory-lean cross-entropy over a large vocabulary.
-
-    The logits tensor is (tokens x 32,768), by far the biggest tensor in the model (2 GB in fp32 for 8 x 2048
-    tokens). A naive version keeps several fp32 copies alive for the backward pass. This one saves only the
-    original logits plus one number per token (the log-sum-exp), works in place, and recomputes the softmax in
-    the backward pass:  d loss / d logits = (softmax(logits) - onehot(target)) / n_tokens.
-    """
+    """Memory-lean cross-entropy over a large vocabulary."""
 
     @staticmethod
     def forward(ctx, logits, targets, ignore_index):

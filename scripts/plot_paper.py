@@ -1,11 +1,5 @@
 """Extra figures for the technical report (paper/figures/).
 
-  data_mix.png                 sampling share of each pretraining source over the run (two-phase mix)
-  lr_sweep.png                 fine-tuning learning-rate sweep per model (first 1,000 dev questions)
-  decoding_gains.png           test accuracy per model: greedy -> + schema -> + schema + values
-  accuracy_by_conditions.png   test accuracy by the number of WHERE conditions in the gold query (greedy, seed 0)
-  ablations.png                copied from docs/figures (scripts/plot_results.py)
-
     python -m scripts.plot_paper
 """
 import json

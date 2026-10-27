@@ -1,9 +1,6 @@
 """Compare the learning-rate sweep runs stored in the bucket.
 
     python scripts/compare_sweep.py            # downloads results/sweep_lr_*/metrics.jsonl and prints a table
-
-The score used to rank runs is the final validation loss averaged with the weights of the overall training mix
-(78% FineWeb-Edu, 18% SQL code, 3.3% Stack Exchange, 0.7% Gretel), since that is what the full run optimises.
 """
 import glob
 import json

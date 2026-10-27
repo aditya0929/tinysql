@@ -1,12 +1,4 @@
-"""Statistics for comparing systems evaluated on the SAME questions (paired data), written from scratch.
-
-  bootstrap_ci(correct)            95% percentile-bootstrap confidence interval of an accuracy
-  paired_bootstrap(a, b)           accuracy difference a - b with its CI and a two-sided p-value (resampling questions)
-  mcnemar(a, b)                    exact McNemar test on the discordant pairs (one system right, the other wrong)
-  mean_std(values)                 mean and sample standard deviation across seeds
-
-`correct`, `a`, `b` are sequences of 0/1 (or bools), one entry per question, aligned across systems.
-"""
+"""Statistics for comparing systems evaluated on the SAME questions (paired data), written from scratch."""
 import math
 
 import numpy as np

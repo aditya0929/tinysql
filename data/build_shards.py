@@ -1,17 +1,5 @@
 """Tokenize data/final into packed uint16 token shards: data/shards/{train,val}/<source>__<file>__<part>.bin
 
-The mix is set here:
-  fineweb_edu, stackexchange   every document
-  stack_sql                    the --sql-keep fraction (default 0.7) of files, chosen by "query score":
-                               files with real SELECT/WHERE/JOIN/GROUP BY queries are preferred over pure DDL or data
-  gretel_sql                   every example, repeated --gretel-repeat times in train (they are tiny and match our prompt format)
-
-Every document is followed by <|endoftext|>. Special-token text is NOT interpreted in web, code or Q&A documents
-(allow_special=False), so crawled text containing "<sql>" cannot inject a control token; only the Gretel examples,
-which we formatted ourselves, may produce the <schema>/<question>/<sql> special tokens.
-
-A deterministic slice of documents (hash of the text, --val-rate, default 0.4%) goes to the validation split.
-
     python -m data.build_shards [--limit-groups N]       # --limit-groups: smoke test with N row groups per file
 """
 import argparse

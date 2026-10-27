@@ -1,12 +1,6 @@
 """Baseline: fine-tune a professionally pretrained Hugging Face model with EXACTLY our WikiSQL recipe.
 
     python -m eval.baselines.finetune_hf --model HuggingFaceTB/SmolLM2-135M --out runs/baseline_smollm2_135m
-
-Same as train/finetune_sql.py in every choice that matters: identical prompt text, loss only on the SQL completion,
-batch 32, my AdamW (betas 0.9/0.95, no weight decay), peak LR 1e-4 with 100 warmup steps and cosine decay to 10%,
-gradient clipping 1.0, bf16 autocast, 3 epochs, best epoch chosen by execution accuracy on the first 1,000 dev
-questions, then the best epoch is scored on the full dev set with the same executor. The only differences are the
-model, its tokenizer, and that generation uses Hugging Face's generate (greedy).
 """
 import argparse
 import json

@@ -1,10 +1,4 @@
-"""Generate SQL for WikiSQL examples with a model and score it by execution.
-
-Generation uses my KV-cache decoder, which has no padding mask, so prompts are grouped by their exact token length
-and each group is decoded as one batch (hundreds of distinct lengths, so it is still fast).
-
-Metrics: execution accuracy (primary), validity (the SQL ran), exact match (normalised text).
-"""
+"""Generate SQL for WikiSQL examples with a model and score it by execution."""
 import re
 from collections import defaultdict
 

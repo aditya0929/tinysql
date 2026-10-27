@@ -1,21 +1,5 @@
 """Categorise every wrong answer by what part of the query went wrong.
 
-Each prediction is parsed into WikiSQL's structured form (eval/wikisql_official.parse_sql) and compared with the gold
-query component by component. A wrong answer gets exactly one category:
-
-  invalid             the SQL did not parse/execute
-  select column       only the selected column is wrong
-  aggregation         only the aggregation (none / MAX / MIN / COUNT / SUM / AVG) is wrong
-  condition column    only a filtered column is wrong
-  operator            only an operator (= > <) is wrong
-  value               only a condition value is wrong
-  missing condition   the prediction has fewer conditions than gold, everything present is right
-  extra condition     the prediction has more conditions than gold, everything gold needs is right
-  multiple            more than one of the above
-  other               the query matches gold structurally but the result still differs (rare)
-
-Separately counted: answers that are right by execution but structurally different from gold ("lucky").
-
     python -m eval.failure_analysis --pred runs_local/final/dev_values_predictions.jsonl
 """
 import argparse

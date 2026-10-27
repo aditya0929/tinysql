@@ -1,15 +1,5 @@
 """WikiSQL structured queries -> SQL text, and prompt/target pairs for fine-tuning.
 
-WikiSQL stores a query as {"sel": column index, "agg": index into AGG_OPS, "conds": [[column index, op index, value], ...]}.
-We render it as ordinary SQL over a generic table `t`, using the table's real column names (double-quoted):
-
-    <schema>CREATE TABLE t ("Player" TEXT, "No." REAL, ...);</schema>
-    <question>What position does the player who played for butler cc (ks) play?</question>
-    <sql>SELECT "Position" FROM t WHERE "School/Club Team" = 'Butler CC (KS)';</sql>
-
-The schema layout deliberately mirrors the Gretel examples seen during pretraining. Values are always single-quoted
-(SQLite applies numeric affinity to a quoted literal compared against a REAL column, so '3' still matches 3).
-
     python -m data.wikisql_to_sql            # writes data/wikisql_sft/{train,dev,test}.jsonl
 """
 import json

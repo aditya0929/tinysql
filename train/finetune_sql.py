@@ -2,9 +2,6 @@
 
     python -m data.wikisql_to_sql                                   # once: builds data/wikisql_sft/*.jsonl
     python -m train.finetune_sql --config configs/finetune_wikisql.yaml --set base_ckpt=runs/main/ckpt_0008600.pt
-
-Loss is computed only on the completion (the SQL, the closing </sql> and <|endoftext|>); prompt tokens are masked
-with -100. The checkpoint with the best dev execution accuracy is kept, not the one with the lowest loss.
 """
 import argparse
 import contextlib

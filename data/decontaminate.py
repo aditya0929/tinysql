@@ -1,10 +1,5 @@
 """Remove pretraining documents that contain WikiSQL dev/test questions: data/dedup -> data/final
 
-A document is dropped if it contains, as a contiguous run of word tokens (lowercased, punctuation ignored):
-  - any 13-gram of a question that has >= 13 tokens, or
-  - the WHOLE question when it has 8..12 tokens (a 13-gram would never fit).
-Questions with < 8 tokens are skipped: they are generic phrases and would flag unrelated documents.
-
     python -m data.decontaminate [--splits dev test]
 """
 import argparse

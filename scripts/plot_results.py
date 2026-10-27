@@ -1,14 +1,5 @@
 """Result figures from results/benchmark_dev.json and results/failures_dev.json (run scripts/analyse_dev.py first).
 
-  docs/figures/accuracy_vs_tokens.png   dev execution accuracy (greedy, mean over seeds, 95% CI) against pretraining tokens
-  docs/figures/failure_categories.png   what goes wrong in each model's wrong answers (greedy, seed 0)
-  docs/figures/ablations.png            the 25M-proxy ablations (greedy, 95% CI)
-  *_test.png                            the first two again on the test set
-
-Pretraining token counts are from the model cards: SmolLM2-135M 2T, SmolLM2-360M 4T (huggingface.co/HuggingFaceTB),
-Pythia-160M 299.9B (github.com/EleutherAI/pythia). GPT-2's token count was never published, so it is drawn as a
-reference line rather than a point; so is the no-pretraining control (0 tokens). Ours: 8,600 steps x 524,288 tokens.
-
     python -m scripts.plot_results
 """
 import json

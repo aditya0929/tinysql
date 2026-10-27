@@ -2,9 +2,6 @@
 
     python -m tokenizer.train_tokenizer --scale 0.1          # quick run to measure time and memory
     python -m tokenizer.train_tokenizer                      # full run -> tokenizer/tinysql_bpe.json
-
-Sampling is by random row group (a few thousand documents each) so the sample mixes all files of a source.
-Counting chunk frequencies is parallel (one Counter per row-group batch); the merge loop is single-process.
 """
 import argparse
 import glob

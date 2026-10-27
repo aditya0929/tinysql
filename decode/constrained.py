@@ -1,13 +1,4 @@
-"""Grammar- and schema-constrained greedy decoding.
-
-At every step the model's tokens are tried best-first; the first one that keeps the output a valid prefix of the
-SQL grammar (decode/sql_grammar.py) is taken. Because the grammar only admits real column names (and, optionally,
-values copied from the question), the model cannot hallucinate a column or emit broken SQL. Once the query is
-complete the only allowed continuation is </sql>.
-
-Greedy over the allowed set equals "mask every disallowed token to -inf, then argmax", but checking candidates
-lazily in score order avoids testing all 32,768 tokens at every step.
-"""
+"""Grammar- and schema-constrained greedy decoding."""
 import itertools
 from collections import defaultdict
 

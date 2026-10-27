@@ -1,11 +1,6 @@
 """Score predictions with the OFFICIAL WikiSQL evaluator (third_party/wikisql, unmodified Salesforce code).
 
-The official script reads structured queries ({"sel", "agg", "conds"}), so our generated SQL text is parsed back
-into that form; a prediction that does not parse is reported to it as {"error": ...} (counted wrong).
-
     python -m eval.wikisql_official --pred runs_local/final/dev_values_predictions.jsonl --split dev
-
-Reports the official logical-form accuracy (lf_accuracy) and execution accuracy (ex_accuracy).
 """
 import argparse
 import json

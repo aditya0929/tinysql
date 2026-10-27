@@ -1,14 +1,4 @@
-"""A prefix-checking grammar for the SQL subset the model writes (WikiSQL style), over raw bytes.
-
-    SQL   := "SELECT " SEL " FROM t" [" WHERE " COND (" AND " COND)*] ";"
-    SEL   := COL | AGG "(" COL ")"            AGG := MAX | MIN | COUNT | SUM | AVG
-    COND  := COL " " OP " " VALUE             OP  := "=" | ">" | "<"
-    COL   := '"' <a real column name of this table> '"'
-    VALUE := "'" <non-empty text, '' escapes a quote> "'"   (optionally: must occur in the question)
-
-check(s) says whether the bytes s are "complete" (a full query), a valid "prefix" of some query, or "invalid".
-Working on bytes means a multi-byte character split across two BPE tokens is handled naturally.
-"""
+"""A prefix-checking grammar for the SQL subset the model writes (WikiSQL style), over raw bytes."""
 
 PREFIX = -1                        # parser marker: the input ended inside this construct
 AGGS = (b"MAX", b"MIN", b"COUNT", b"SUM", b"AVG")

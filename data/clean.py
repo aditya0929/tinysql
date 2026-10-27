@@ -1,9 +1,5 @@
 """Clean the raw corpora: data/raw/<source>/*.parquet -> data/clean/<source>/*.parquet
 
-Every output row has: text, source, license, origin.  Each filter is a small pure function that returns
-(text_or_None, reason). A dropped document is counted under its reason, so the report shows exactly what
-each filter removed.
-
     python -m data.clean                      # all sources, all CPU cores
     python -m data.clean --only stack_sql     # one source
     python -m data.clean --limit-batches 2    # smoke test on the first 2 batches of each file

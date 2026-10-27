@@ -1,15 +1,5 @@
 """Statistics and failure analysis for every benchmark system on WikiSQL dev (8,421 questions) or test (15,878).
 
-Reads the prediction files written by scripts/benchmark_queue.py (downloaded to runs_local/benchmark/) and, for the
-schema-only decoding of the three main models, the earlier full runs (runs_local/rescored, runs_local/baselines). All were
-scored by the same executor (eval/execution_acc.py, after the identifier-lexer fix).
-
-Per system and decoding: accuracy of each seed, mean and std over seeds, and a 95% bootstrap CI over questions of the
-seed-averaged accuracy (each question counts as the fraction of seeds that got it right). Paired tests (paired bootstrap
-and exact McNemar) compare seed-0 predictions question by question. Failure categories use seed 0, greedy.
-
-Writes results/benchmark_<split>.json and results/failures_<split>.json.
-
     python -m scripts.analyse_dev [--split test]
 """
 import argparse

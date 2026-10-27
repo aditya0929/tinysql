@@ -1,9 +1,6 @@
 """Plot the pretraining curves from a metrics.jsonl (the one synced to the bucket or runs/main/metrics.jsonl).
 
     python scripts/plot_loss.py --metrics runs_local/main/metrics.jsonl --out docs/figures/loss_curves.png
-
-Four small charts, each with its own axis (no dual axes): training loss, per-source validation loss,
-learning rate, gradient norm. Colors come from a validated categorical palette (slots 1-4).
 """
 import argparse
 import json

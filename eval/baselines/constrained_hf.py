@@ -1,11 +1,6 @@
 """Run OUR constrained decoder (decode/constrained.py) on a Hugging Face baseline, so constraints are compared fairly.
 
     python -m eval.baselines.constrained_hf --model_dir runs/baseline_smollm2-135m/best --decode values --out runs/x
-
-Two small adapters make a Hugging Face model look like TinySQL to the decoder:
-  HFTokenBytes   token id -> raw bytes (byte-level BPE tokens are stored as printable stand-ins for bytes);
-  HFModelAdapter model(ids) / model(x, start_pos, past_kvs) -> (logits, None, cache), using HF's own KV cache.
-Prompts in a group have identical length, so no attention mask is needed (the same reason as for our model).
 """
 import argparse
 import json

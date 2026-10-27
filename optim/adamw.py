@@ -2,15 +2,7 @@ import torch
 
 
 class AdamW:
-    """AdamW with decoupled weight decay, written from scratch (checked against torch.optim.AdamW in tests).
-
-    Per parameter p with gradient g, at step t:
-        p <- p * (1 - lr * weight_decay)          decay acts on the weights directly, not through the gradient
-        m <- b1 * m + (1 - b1) * g                running mean of gradients
-        v <- b2 * v + (1 - b2) * g^2              running mean of squared gradients
-        p <- p - lr * (m / (1 - b1^t)) / (sqrt(v / (1 - b2^t)) + eps)
-    m and v are kept in fp32.
-    """
+    """AdamW with decoupled weight decay, written from scratch (checked against torch.optim.AdamW in tests)."""
 
     def __init__(self, params, lr: float = 1e-3, betas=(0.9, 0.95), eps: float = 1e-8, weight_decay: float = 0.1):
         params = list(params)

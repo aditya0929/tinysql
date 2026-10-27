@@ -1,9 +1,5 @@
 """End-to-end check that an exported Hugging Face folder behaves exactly like the from-scratch model.
 
-1. Tokenizer: every WikiSQL dev and test prompt and gold query encodes to the same ids with AutoTokenizer.
-2. Model: on the first N dev questions, greedy SQL from AutoModelForCausalLM.generate() equals the SQL from our
-   own generate loop, token for token, and both score the same execution accuracy.
-
     python -m scripts.verify_hf_export --ckpt checkpoints/tinysql_125m_wikisql_lr5e-05_s0.pt --hf release/TinySQL-125M-WikiSQL
 """
 import argparse

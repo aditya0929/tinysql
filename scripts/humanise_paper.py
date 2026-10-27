@@ -1,14 +1,5 @@
 """Rewrite the paper's prose with a plain-English style model, into a SEPARATE file. paper/main.tex is never modified.
 
-The style model is Qwen2.5-7B-Instruct with the newsletter project's QLoRA adapter (adapter_v2). It was trained to
-return {"items": [{"index", "headline", "body_html"}]} under a set of plain-English voice rules, so the prompt keeps
-that format and those rules and replaces the sales task with "rewrite this paragraph".
-
-Safety: every span that carries a fact (numbers and anything containing a digit, LaTeX commands, citations,
-references, maths, code) is replaced by a placeholder like [[7]] before the model sees the text and restored
-afterwards. A rewrite is rejected, and the original paragraph kept, if any placeholder is missing, duplicated or
-invented, or if the length changes too much.
-
     python -m scripts.humanise_paper prepare               # laptop: paper/main.tex -> paper/humanise/units.jsonl
     python scripts/humanise_paper.py generate --adapter DIR  # GPU: units.jsonl -> outputs.jsonl
     python -m scripts.humanise_paper assemble              # laptop: -> paper/main_humanised.tex + report.md

@@ -2,23 +2,7 @@
 
     python scripts/benchmark_queue.py --bucket tinysql-data-474078649724 [--dry-run]
 
-Phases (every model gets the same treatment; selection always uses dev execution accuracy on the first 1,000 dev
-questions, as in all earlier runs):
-  1  learning-rate sweep: each model fine-tuned at 5e-5, 1e-4, 2e-4 (seed 0)
-  2  at each model's best LR: seeds 0, 1, 2 for TinySQL and both SmolLM2 models, seed 0 for GPT-2 and Pythia;
-     every final run scored on the full dev set greedily and with schema+values constraints
-     (GPT-2 / Pythia also with schema-only constraints)
-  3  no-pretraining control: TinySQL architecture from random weights, fine-tuned at 1e-4 and 1e-3
-  4  ablations on the 25M proxy: pretrain 5 variants (150M tokens each), fine-tune each, score greedy on full dev
-
-Every finished step is recorded in benchmark/state.json (mirrored to the bucket), so the queue resumes after an
-interruption. Results go to gs://<bucket>/results/benchmark/<job>/. Constrained evaluations are CPU-bound, so up to
-three run in the background while the next fine-tune trains. Weights are deleted once a run is fully scored.
-
     python scripts/benchmark_queue.py --bucket <bucket> --test
-
-The one-time test-set evaluation: every system from phases 2-3 fine-tuned again at its dev-chosen LR and scored on
-test (state benchmark/test_state.json, log logs/test.log, results gs://<bucket>/results/test/<job>/, weights kept).
 """
 import argparse
 import glob

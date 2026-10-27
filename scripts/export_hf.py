@@ -1,9 +1,5 @@
 """Export a TinySQL checkpoint to a standard Hugging Face folder (distribution only; training never uses this).
 
-The architecture is Llama-compatible (the oracle test proves the logits match), so the weights are written as a
-LlamaForCausalLM in safetensors, and the from-scratch byte-level BPE tokenizer is written as an equivalent
-`tokenizers` tokenizer.json. tests/test_export_hf.py checks both are exact.
-
     python -m scripts.export_hf --ckpt checkpoints/tinysql_125m_base.pt --out release/TinySQL-125M-base
     python -m scripts.export_hf --ckpt checkpoints/tinysql_125m_wikisql_lr5e-05_s0.pt --out release/TinySQL-125M-WikiSQL --sql
 """

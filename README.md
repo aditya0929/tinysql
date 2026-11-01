@@ -59,6 +59,10 @@ print(tok.decode(model.generate(ids, max_new_tokens=64)[0, ids.shape[1]:], skip_
 
 Every model was fine-tuned with the identical recipe, after its own learning-rate sweep, and scored once on the test set. Results are mean ± std over 3 seeds where shown. The official WikiSQL evaluator agrees with our executor within 0.11 points for these systems; it gives 78.03% execution and 72.28% logical-form accuracy for our model at greedy.
 
+![TinySQL vs similar-sized models: WikiSQL test accuracy against pretraining data](docs/linkedin/1_accuracy_vs_pretraining_data.png)
+
+![What the grammar check (constrained decoding) adds for each model](docs/linkedin/3_grammar_check_gains.png)
+
 **Main findings:**
 - **Pretraining is most of the result:** it adds 41 points over the same network trained from random weights.
 - **Close to GPT-2, far ahead of Pythia:** within about 1 point of GPT-2 (124M), and 17 points above Pythia-160M despite 67× less pretraining data.
@@ -67,6 +71,16 @@ Every model was fine-tuned with the identical recipe, after its own learning-rat
 - **Errors:** accuracy falls as queries need more conditions. A hand audit of 50 aggregation errors found that in 62% of them the WikiSQL label itself does not match the question.
 
 The paper has the confidence intervals, McNemar tests, failure analysis and figures; [`PROJECT_LOG.md`](PROJECT_LOG.md), sections 15 to 18, has every number.
+
+## Model and pretraining
+
+A Llama-style decoder: 30 blocks with grouped-query attention, SwiGLU, RoPE and tied embeddings, 125.08M parameters.
+
+![TinySQL-125M architecture: decoder block, grouped-query attention and parameter budget](docs/linkedin/4_architecture.png)
+
+Pretraining took 8,600 steps (4.51B tokens) on one L4. The SQL share of the data mix rose from 15% to 36% for the last 15% of steps (dashed line).
+
+![Pretraining: training loss, validation loss by source, learning rate and gradient norm](docs/linkedin/2_pretraining_curves.png)
 
 ## What is built from scratch
 

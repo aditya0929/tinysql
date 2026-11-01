@@ -1,7 +1,7 @@
 """Publish every kept checkpoint: a GitHub release in the repository's own format, and the extra Hugging Face uploads.
 
     python -m scripts.publish_weights github [--dry-run]
-    python -m scripts.publish_weights hf --user adiitya0929 [--dry-run]
+    python -m scripts.publish_weights hf --user adiitya0929 [--dry-run] [--cards-only]
 
 Inputs: checkpoints/, release/weights/ (copied from the bucket) and release/TinySQL-125M-WikiSQL-lr1e-4
 (scripts/export_hf.py). docs/release-v1.0.md describes every file. The main two Hugging Face repos come from
@@ -62,7 +62,7 @@ def github(dry_run):
     print(f"https://github.com/{REPO}/releases/tag/{TAG}")
 
 
-def hf(user, dry_run):
+def hf(user, dry_run, cards_only=False):
     folder = lambda d: {p.name: p for p in sorted(Path(d).iterdir()) if p.name != "README.md"}
     jobs = [  # (repo, branch, {path in repo: local file}, model card, commit message)
         ("TinySQL-125M-base", None, {f"original/{n}": GITHUB_FILES[n] for n in
@@ -77,7 +77,9 @@ def hf(user, dry_run):
          "SmolLM2-360M-WikiSQL-baseline", "SmolLM2-360M fine-tuned with the TinySQL recipe"),
     ]
     for name, branch, files, card, message in jobs:
-        text = (Path("hf") / card / "README.md").read_text(encoding="utf-8").replace("HF_USER", user)
+        if cards_only:
+            files, message = {}, "Update the model card"
+        text =(Path("hf") / card / "README.md").read_text(encoding="utf-8").replace("HF_USER", user)
         assert "EXAMPLE_OUTPUT" not in text, f"fill in the example output in hf/{card}/README.md"
         print(f"{user}/{name}" + (f"@{branch}" if branch else "") + f": {sorted(files)} + README.md")
         if dry_run:
@@ -98,11 +100,12 @@ def main():
     ap.add_argument("target", choices=["github", "hf"])
     ap.add_argument("--user", help="Hugging Face user (hf only)")
     ap.add_argument("--dry-run", action="store_true", help="stage and check the files, upload nothing")
+    ap.add_argument("--cards-only", action="store_true", help="hf: upload only the model cards")
     a = ap.parse_args()
     if a.target == "github":
         github(a.dry_run)
     else:
-        hf(a.user, a.dry_run)
+        hf(a.user, a.dry_run, a.cards_only)
 
 
 if __name__ == "__main__":

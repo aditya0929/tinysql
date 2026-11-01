@@ -59,6 +59,10 @@ The pretraining data included synthetic text-to-SQL examples in this `<schema>`/
 
 Final validation loss, in nats per token: FineWeb-Edu 2.94, SQL code 0.96, Stack Exchange 2.46, Gretel 1.05.
 
+![TinySQL-125M architecture: decoder block, grouped-query attention and parameter budget](https://raw.githubusercontent.com/aditya0929/tinysql/main/docs/linkedin/4_architecture.png)
+
+![Pretraining: training loss, validation loss by source, learning rate and gradient norm. The dashed line marks the switch to the SQL-heavy mix.](https://raw.githubusercontent.com/aditya0929/tinysql/main/docs/linkedin/2_pretraining_curves.png)
+
 The architecture matches Llama, so the weights are distributed in the standard `LlamaForCausalLM` format. The model was trained with the repository's own code. The export is checked to produce the same token ids and logits as the original implementation.
 
 ## Full training state

@@ -60,6 +60,10 @@ The table reports execution accuracy (%): the generated query is run against the
 
 `model.generate()` above is plain greedy decoding. The constrained numbers use the grammar-constrained decoder in the [GitHub repository](https://github.com/aditya0929/tinysql) (`decode/`). It only allows the table's real column names and values copied from the question, which gives 100% valid SQL.
 
+![TinySQL vs similar-sized models: WikiSQL test accuracy against pretraining data](https://raw.githubusercontent.com/aditya0929/tinysql/main/docs/linkedin/1_accuracy_vs_pretraining_data.png)
+
+![What the grammar check (constrained decoding) adds for each model](https://raw.githubusercontent.com/aditya0929/tinysql/main/docs/linkedin/3_grammar_check_gains.png)
+
 ## Training
 
 | | |
@@ -69,6 +73,10 @@ The table reports execution accuracy (%): the generated query is run against the
 | Tokenizer | own byte-level BPE, 32,768 tokens |
 | Pretraining | 4.51B tokens (FineWeb-Edu, The Stack SQL, Stack Exchange, Gretel synthetic text-to-SQL), 8,600 steps, about 46 h on one NVIDIA L4 |
 | Fine-tuning | WikiSQL train (56,355 examples), loss on the SQL only, 3 epochs, batch 32, peak LR 5e-5, best epoch by dev execution accuracy |
+
+![TinySQL-125M architecture: decoder block, grouped-query attention and parameter budget](https://raw.githubusercontent.com/aditya0929/tinysql/main/docs/linkedin/4_architecture.png)
+
+![Pretraining: training loss, validation loss by source, learning rate and gradient norm](https://raw.githubusercontent.com/aditya0929/tinysql/main/docs/linkedin/2_pretraining_curves.png)
 
 The architecture matches Llama, so the weights are distributed in the standard `LlamaForCausalLM` format. The model was built and trained with the repository's own code, not with `transformers`. The export is checked to produce the same token ids, logits and generated SQL as the original implementation.
 

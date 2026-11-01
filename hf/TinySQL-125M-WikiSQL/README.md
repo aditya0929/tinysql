@@ -22,6 +22,7 @@ A 125M-parameter text-to-SQL model. Given a table schema and a question, it writ
 - **Paper:** [TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens](https://doi.org/10.5281/zenodo.23396770) (Zenodo, 2026)
 - **Code:** [github.com/aditya0929/tinysql](https://github.com/aditya0929/tinysql)
 - **Base model:** [HF_USER/TinySQL-125M-base](https://huggingface.co/HF_USER/TinySQL-125M-base)
+- **feel free to contact me at** - https://www.linkedin.com/in/aditya-narayan-jha-36193a251/
 
 ## Quick start
 

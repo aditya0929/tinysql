@@ -72,6 +72,16 @@ The table reports execution accuracy (%): the generated query is run against the
 
 The architecture matches Llama, so the weights are distributed in the standard `LlamaForCausalLM` format. The model was built and trained with the repository's own code, not with `transformers`. The export is checked to produce the same token ids, logits and generated SQL as the original implementation.
 
+## Other checkpoints
+
+| Where | What |
+|---|---|
+| Branch [`lr1e-4-seed0`](https://huggingface.co/HF_USER/TinySQL-125M-WikiSQL/tree/lr1e-4-seed0) | Learning-rate sweep run, LR 1e-4, seed 0 (dev only: 78.46% greedy, 81.46% constrained). Load with `revision="lr1e-4-seed0"` |
+| [GitHub release v1.0](https://github.com/aditya0929/tinysql/releases/tag/v1.0) | This model and the base model in the repository's own checkpoint format, for its evaluation and constrained-decoding code |
+| [HF_USER/SmolLM2-135M-WikiSQL-baseline](https://huggingface.co/HF_USER/SmolLM2-135M-WikiSQL-baseline), [HF_USER/SmolLM2-360M-WikiSQL-baseline](https://huggingface.co/HF_USER/SmolLM2-360M-WikiSQL-baseline) | The SmolLM2 baselines, fine-tuned with the same recipe |
+
+The weights of seeds 1 and 2 and of the other baselines' test runs were not kept.
+
 ## Limitations
 
 - **WikiSQL shape only:** one table, one selected column, an optional aggregate, and up to four `AND` conditions. No joins, `GROUP BY`, `ORDER BY` or nesting. Do not expect it to handle Spider-style or production SQL.

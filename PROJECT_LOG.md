@@ -2,7 +2,7 @@
 
 A running, detailed record of what has been built, how, why, what broke, and what was measured. It complements [TINYSQL_PLAN.md](TINYSQL_PLAN.md) (the design and the intended road map). This file records what has actually happened. Every number below was measured in this repository unless marked as an estimate.
 
-Last updated: 2026-10-15. Technical report published: DOI 10.5281/zenodo.23396770.
+Last updated: 2026-11-01. Technical report published: DOI 10.5281/zenodo.23396770.
 
 ---
 
@@ -20,10 +20,10 @@ Last updated: 2026-10-15. Technical report published: DOI 10.5281/zenodo.2339677
 | H. Text-to-SQL fine-tuning | **done**: WikiSQL **test 77.95 ± 0.18%** greedy, **80.39 ± 0.20%** with schema + values constraints (3 seeds, section 17) |
 | I. Decoding (beam, constrained) | **constrained decoding done** (section 15): 100% validity, never breaks a correct answer of ours; beam search not done |
 | J. Benchmarking and failure analysis | **done**: GPT-2, Pythia-160M, SmolLM2-135M/360M with the same recipe, LR sweep, 3 seeds, no-pretraining control, CIs and paired tests, failure categories, aggregation-label audit, official evaluator on dev and test (sections 15 to 17) |
-| K. Demo, model card, README | **model cards and README done; models on Hugging Face** (section 18); demo not started |
+| K. Demo, model card, README | **model cards and README done; models on Hugging Face** (section 18); **every kept checkpoint published** on GitHub and Hugging Face (section 18.1); demo not started |
 | L. Technical report (Zenodo) | **published** 2026-10-15, DOI [10.5281/zenodo.23396770](https://doi.org/10.5281/zenodo.23396770) |
 
-Tests: **166 passing** (`python -m pytest tests`).
+Tests: **169 passing** (`python -m pytest tests`).
 Code pushed to `github.com/aditya0929/tinysql` (branch `main`).
 
 ---
@@ -780,3 +780,20 @@ Both use the Apache-2.0 license and the standard `LlamaForCausalLM` format with 
 - After upload, a fresh download from the Hub reproduced the model-card examples exactly.
 
 Model cards are in `hf/`; `scripts/upload_hf.py --user adiitya0929` reproduces the upload.
+
+### 18.1 Every kept checkpoint published (2026-11-01)
+
+| Where | Files |
+|---|---|
+| [GitHub release v1.0](https://github.com/aditya0929/tinysql/releases/tag/v1.0) | in the repository's own format: the paper model (LR 5e-5, seed 0), the base model, the full pretraining state at steps 8,500 and 8,600 (weights, AdamW moments, loss scaler, data-loader and torch random states), the LR 1e-4 seed-0 fine-tune, the paper PDF, `SHA256SUMS.txt` |
+| `TinySQL-125M-base`, folder `original/` | the two full pretraining states |
+| `TinySQL-125M-WikiSQL`, branch `lr1e-4-seed0` | the LR 1e-4 seed-0 fine-tune, exported (dev: 78.46% greedy, 81.46% constrained) |
+| `SmolLM2-135M-WikiSQL-baseline`, `SmolLM2-360M-WikiSQL-baseline` | the section 15 baselines, LR 1e-4, seed 0 (dev: 82.72 / 85.19% and 87.27 / 88.46%) |
+
+Checks before upload:
+- Every `.pt` file loads with `torch.load(..., weights_only=True)`. None contains absolute paths or personal details.
+- The LR 1e-4 export passes `scripts/verify_hf_export.py`: all 48,598 dev and test strings tokenize identically, and greedy SQL is identical on 300 of 300 dev questions (69.0% on both).
+
+**Not kept:** the test phase (section 17) kept every fine-tuned model, but only on the VM's disk, and the VM and disk were later deleted. Seeds 1 and 2 of our model, the no-pretraining control, every baseline's test-phase run and the 25M ablation models therefore have scores and predictions but no weights. Only the bucket copies above survived.
+
+`scripts/publish_weights.py github` and `scripts/publish_weights.py hf --user adiitya0929` reproduce the uploads; `docs/release-v1.0.md` is the release text.

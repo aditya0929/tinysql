@@ -61,6 +61,17 @@ Final validation loss, in nats per token: FineWeb-Edu 2.94, SQL code 0.96, Stack
 
 The architecture matches Llama, so the weights are distributed in the standard `LlamaForCausalLM` format. The model was trained with the repository's own code. The export is checked to produce the same token ids and logits as the original implementation.
 
+## Full training state
+
+The [`original/`](https://huggingface.co/HF_USER/TinySQL-125M-base/tree/main/original) folder holds the last two pretraining checkpoints in the repository's own format, for resuming or continuing pretraining with its code:
+
+| File | Size | Contents |
+|---|---|---|
+| `tinysql_125m_pretrain_step8600_full.pt` | 1.40 GB | step 8,600 (the released model): weights, AdamW moments, loss scaler, data-loader and torch random states |
+| `tinysql_125m_pretrain_step8500_full.pt` | 1.40 GB | the same at step 8,500; resuming from it reruns the last 100 steps |
+
+Both load with `torch.load(path, weights_only=True)`. To resume, copy one to `runs/main/ckpt_<step>.pt` and run `python -m train.pretrain --config configs/tinysql_125m.yaml`; the trainer picks up the latest checkpoint and needs the token shards from the data pipeline. The [GitHub release](https://github.com/aditya0929/tinysql/releases/tag/v1.0) has the same files plus weights-only checkpoints with SHA-256 checksums.
+
 ## Limitations
 
 A small base model trained on 4.5B tokens: its general knowledge and long-form coherence are limited, and it can produce false or nonsensical text. It is mainly useful as a starting point for fine-tuning on SQL or code tasks. It is English only.

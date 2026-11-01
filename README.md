@@ -11,6 +11,7 @@ A 125M-parameter text-to-SQL language model in which every part of the model pat
 |---|---|
 | **Paper** | [TinySQL: A 125M-Parameter Text-to-SQL Model Built and Pretrained From Scratch on 4.5B Tokens](https://doi.org/10.5281/zenodo.23396770) (Zenodo, 2026, DOI 10.5281/zenodo.23396770). PDF also in [`paper/`](paper/TinySQL-technical-report-v1.pdf) |
 | **Models** (Apache-2.0) | [TinySQL-125M-WikiSQL](https://huggingface.co/adiitya0929/TinySQL-125M-WikiSQL) (text-to-SQL) and [TinySQL-125M-base](https://huggingface.co/adiitya0929/TinySQL-125M-base) (pretrained base) |
+| **All weights** | [GitHub release v1.0](https://github.com/aditya0929/tinysql/releases/tag/v1.0): every kept checkpoint in this repository's own format, including the full pretraining state, with checksums. On Hugging Face also the LR 1e-4 run (branch [`lr1e-4-seed0`](https://huggingface.co/adiitya0929/TinySQL-125M-WikiSQL/tree/lr1e-4-seed0)) and the [SmolLM2-135M](https://huggingface.co/adiitya0929/SmolLM2-135M-WikiSQL-baseline) and [SmolLM2-360M](https://huggingface.co/adiitya0929/SmolLM2-360M-WikiSQL-baseline) baselines |
 | **Try it** | [Colab notebook](https://colab.research.google.com/drive/1MQ70s8txcYtgMd99cH_WHvYwgcmJd117?usp=sharing) and the notebooks in [`playground/`](playground/) |
 
 ## Quick start
@@ -92,6 +93,11 @@ The export is checked to be exact: all 48,598 WikiSQL dev and test strings token
 ```bash
 pip install -r requirements.txt
 python -m pytest tests                                   # 169 tests
+
+# shortcut: score the released model without training anything
+gh release download v1.0 -R aditya0929/tinysql -p tinysql_125m_wikisql_lr5e-05_s0.pt
+python -m data.download --only wikisql                   # about 30 MB
+python -m eval.run_eval --ckpt tinysql_125m_wikisql_lr5e-05_s0.pt --split test --decode values --out runs/check
 
 # data (about 17 GB download)
 python -m data.download
